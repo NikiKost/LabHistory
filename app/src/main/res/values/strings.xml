@@ -5,6 +5,7 @@
     <string name="add_profile">Добавить профиль</string>
     <string name="import_document">Загрузить PDF или фото</string>
     <string name="manual_result">Добавить результат вручную</string>
+    <string name="check_updates">Проверить обновления</string>
     <string name="documents_title">Документы и результаты</string>
     <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
 </resources>

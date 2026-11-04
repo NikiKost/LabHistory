@@ -36,6 +36,19 @@ APK — устанавливаемый пакет Android. В нём наход�
 
 Debug APK автоматически подписывается отладочным ключом компьютера и подходит для установки на свои устройства. Для публикации нужен release APK или Android App Bundle, подписанный постоянным приватным ключом владельца проекта.
 
+## Обновления через GitHub
+
+Release-версия проверяет публичный файл `update.json` из последнего GitHub Release. Если `versionCode` больше установленного, приложение показывает описание, загружает APK через системный DownloadManager, проверяет SHA-256 и передаёт файл системному установщику Android. Пользователь всегда подтверждает установку.
+
+Публикация запускается тегом, совпадающим с `versionName`, например:
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Workflow `.github/workflows/release.yml` требует GitHub Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` и `ANDROID_KEY_PASSWORD`.
+
 ## Сборка
 
 Требования:

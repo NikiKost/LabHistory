@@ -2,7 +2,10 @@ package ru.labhistory.app.ui;
 
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -21,20 +24,34 @@ import androidx.lifecycle.LiveData;
 import java.util.ArrayList;
 import java.util.List;
 
+import ru.labhistory.app.BuildConfig;
 import ru.labhistory.app.data.AnalysisDocumentEntity;
 import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.LabResultEntity;
 import ru.labhistory.app.data.ProfileEntity;
 import ru.labhistory.app.databinding.ActivityMainBinding;
 import ru.labhistory.app.domain.ManualResultInput;
+import ru.labhistory.app.update.UpdateChecker;
+import ru.labhistory.app.update.UpdateDownloader;
+import ru.labhistory.app.update.UpdateInfo;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String UPDATE_PREFS = "update_check";
+    private static final String KEY_LAST_UPDATE_CHECK = "last_update_check";
+    private static final long UPDATE_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L;
+
     private ActivityMainBinding binding;
     private AnalysisRepository repository;
     private DocumentListAdapter documentAdapter;
+    private UpdateChecker updateChecker;
+    private UpdateDownloader updateDownloader;
     private List<ProfileEntity> profiles = new ArrayList<>();
     private LiveData<List<AnalysisDocumentEntity>> currentDocuments;
     private Uri pendingIncomingUri;
+    private final Handler updateHandler = new Handler(Looper.getMainLooper());
+    private boolean updateInspectionRunning;
+    private boolean updateReadyDialogShown;
+    private boolean awaitingInstallPermission;
 
     private final ActivityResultLauncher<String[]> openDocumentLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onDocumentSelected);
@@ -46,6 +63,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(binding.getRoot());
 
         repository = new AnalysisRepository(this);
+        updateChecker = new UpdateChecker();
+        updateDownloader = new UpdateDownloader(this);
         documentAdapter = new DocumentListAdapter(this);
         binding.documentsList.setAdapter(documentAdapter);
         binding.documentsList.setEmptyView(binding.emptyView);
@@ -58,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
                 new String[]{"application/pdf", "image/*"}
         ));
         binding.manualButton.setOnClickListener(view -> showManualResultDialog());
+        binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
         binding.documentsList.setOnItemClickListener((parent, view, position, id) -> {
             AnalysisDocumentEntity document = documentAdapter.getItem(position);
             if (document != null) {
@@ -70,6 +90,27 @@ public class MainActivity extends AppCompatActivity {
 
         repository.observeProfiles().observe(this, this::renderProfiles);
         repository.ensureDefaultProfile();
+        checkForUpdates(false);
+        if (updateDownloader.hasPendingDownload()) {
+            inspectPendingUpdate();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (awaitingInstallPermission && getPackageManager().canRequestPackageInstalls()) {
+            awaitingInstallPermission = false;
+            launchUpdateInstaller();
+        } else if (updateDownloader != null && updateDownloader.hasPendingDownload()) {
+            inspectPendingUpdate();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        updateHandler.removeCallbacksAndMessages(null);
+        super.onDestroy();
     }
 
     @Override
@@ -82,6 +123,149 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 importUri(incoming);
             }
+        }
+    }
+
+    private void checkForUpdates(boolean manual) {
+        if (!manual) {
+            long lastCheck = getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE)
+                    .getLong(KEY_LAST_UPDATE_CHECK, 0L);
+            if (System.currentTimeMillis() - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+                return;
+            }
+        }
+
+        binding.updateButton.setEnabled(false);
+        binding.updateButton.setText("Проверяю обновления…");
+        updateChecker.check(new UpdateChecker.Callback() {
+            @Override
+            public void onSuccess(UpdateInfo updateInfo) {
+                runOnUiThread(() -> {
+                    binding.updateButton.setEnabled(true);
+                    binding.updateButton.setText("Проверить обновления");
+                    getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE)
+                            .edit()
+                            .putLong(KEY_LAST_UPDATE_CHECK, System.currentTimeMillis())
+                            .apply();
+
+                    if (updateInfo.versionCode > BuildConfig.VERSION_CODE
+                            && Build.VERSION.SDK_INT >= updateInfo.minimumAndroid) {
+                        showAvailableUpdate(updateInfo);
+                    } else if (manual) {
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Установлена актуальная версия " + BuildConfig.VERSION_NAME,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onError(Exception error) {
+                runOnUiThread(() -> {
+                    binding.updateButton.setEnabled(true);
+                    binding.updateButton.setText("Проверить обновления");
+                    if (manual) {
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Не удалось проверить обновления: " + safeMessage(error),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                });
+            }
+        });
+    }
+
+    private void showAvailableUpdate(UpdateInfo updateInfo) {
+        StringBuilder message = new StringBuilder()
+                .append("Доступна версия ")
+                .append(updateInfo.versionName)
+                .append(".\n\n");
+        if (!updateInfo.releaseNotes.isEmpty()) {
+            message.append(updateInfo.releaseNotes).append("\n\n");
+        }
+        message.append("APK будет загружен с GitHub и проверен по SHA-256.");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle("Обновление приложения")
+                .setMessage(message.toString())
+                .setPositiveButton("Скачать", (dialog, which) -> downloadUpdate(updateInfo));
+        if (!updateInfo.required) {
+            builder.setNegativeButton("Позже", null);
+        }
+        builder.show();
+    }
+
+    private void downloadUpdate(UpdateInfo updateInfo) {
+        try {
+            updateReadyDialogShown = false;
+            updateDownloader.enqueue(updateInfo);
+            Toast.makeText(this, "Обновление загружается", Toast.LENGTH_LONG).show();
+            scheduleUpdateInspection();
+        } catch (Exception error) {
+            Toast.makeText(
+                    this,
+                    "Не удалось начать загрузку: " + safeMessage(error),
+                    Toast.LENGTH_LONG
+            ).show();
+        }
+    }
+
+    private void scheduleUpdateInspection() {
+        updateHandler.removeCallbacksAndMessages(null);
+        updateHandler.postDelayed(this::inspectPendingUpdate, 1500L);
+    }
+
+    private void inspectPendingUpdate() {
+        if (updateInspectionRunning || updateDownloader == null) {
+            return;
+        }
+        updateInspectionRunning = true;
+        updateDownloader.inspectPending((state, message) -> runOnUiThread(() -> {
+            updateInspectionRunning = false;
+            if (state == UpdateDownloader.State.DOWNLOADING) {
+                scheduleUpdateInspection();
+            } else if (state == UpdateDownloader.State.READY) {
+                showInstallUpdateDialog();
+            } else if (state == UpdateDownloader.State.FAILED) {
+                Toast.makeText(
+                        MainActivity.this,
+                        "Обновление не загружено: " + message,
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }));
+    }
+
+    private void showInstallUpdateDialog() {
+        if (updateReadyDialogShown || !updateDownloader.hasVerifiedUpdate()) {
+            return;
+        }
+        updateReadyDialogShown = true;
+        new AlertDialog.Builder(this)
+                .setTitle("Обновление готово")
+                .setMessage("Файл проверен. Android попросит подтвердить установку новой версии.")
+                .setNegativeButton("Позже", (dialog, which) -> updateReadyDialogShown = false)
+                .setPositiveButton("Установить", (dialog, which) -> {
+                    updateReadyDialogShown = false;
+                    launchUpdateInstaller();
+                })
+                .show();
+    }
+
+    private void launchUpdateInstaller() {
+        UpdateDownloader.InstallResult result = updateDownloader.requestInstall(this);
+        awaitingInstallPermission = result == UpdateDownloader.InstallResult.PERMISSION_REQUIRED;
+        if (result == UpdateDownloader.InstallResult.NO_FILE) {
+            Toast.makeText(this, "Файл обновления не найден", Toast.LENGTH_LONG).show();
+        } else if (result == UpdateDownloader.InstallResult.PERMISSION_REQUIRED) {
+            Toast.makeText(
+                    this,
+                    "Разрешите установку из этого источника и вернитесь в приложение",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 

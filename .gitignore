@@ -6,10 +6,12 @@
 .gradle/
 .gradle-user/
 .android-sdk/
+.tools/
 .codex-attachments/
 .codex/
 build/
 **/build/
+dist/
 *.apk
 *.aab
 
