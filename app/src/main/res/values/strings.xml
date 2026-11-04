@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Мои анализы</string>
+    <string name="local_only_notice">Данные хранятся локально на этом устройстве</string>
+    <string name="profile_label">Профиль</string>
+    <string name="add_profile">Добавить профиль</string>
+    <string name="import_document">Загрузить PDF или фото</string>
+    <string name="manual_result">Добавить результат вручную</string>
+    <string name="documents_title">Документы и результаты</string>
+    <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
+</resources>

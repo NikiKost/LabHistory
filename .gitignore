@@ -1,0 +1,30 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Gradle and build output
+.gradle/
+.gradle-user/
+.android-sdk/
+.codex-attachments/
+.codex/
+build/
+**/build/
+*.apk
+*.aab
+
+# Local SDK path and secrets
+local.properties
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Captured medical files must never be committed
+private-data/
+sample-real-data/
+*.medical.pdf
