@@ -22,8 +22,8 @@ android {
         applicationId 'ru.labhistory.app'
         minSdk 26
         targetSdk 36
-        versionCode 11
-        versionName '0.9.0'
+        versionCode 12
+        versionName '0.10.0'
 
         buildConfigField 'String', 'UPDATE_MANIFEST_URL', '"https://github.com/NikiKost/LabHistory/releases/latest/download/update.json"'
 

@@ -70,13 +70,104 @@ public class AnalysisRepository {
         });
     }
 
-    public void addProfile(String name) {
-        executor.execute(() -> database.profileDao().insert(new ProfileEntity(
-                name.trim(),
-                null,
-                null,
-                System.currentTimeMillis()
-        )));
+    public void addProfile(
+            String name,
+            String birthDate,
+            String sex,
+            Callback<ProfileEntity> callback
+    ) {
+        executor.execute(() -> {
+            try {
+                String cleanedName = clean(name);
+                if (cleanedName.isEmpty()) {
+                    throw new IllegalArgumentException("Введите имя или псевдоним");
+                }
+                if (database.profileDao().findByName(cleanedName) != null) {
+                    throw new IllegalArgumentException("Профиль с таким именем уже существует");
+                }
+                ProfileEntity profile = new ProfileEntity(
+                        cleanedName,
+                        emptyToNull(birthDate),
+                        emptyToNull(sex),
+                        System.currentTimeMillis()
+                );
+                profile.id = database.profileDao().insert(profile);
+                callback.onSuccess(profile);
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public void updateProfile(
+            long profileId,
+            String name,
+            String birthDate,
+            String sex,
+            Callback<ProfileEntity> callback
+    ) {
+        executor.execute(() -> {
+            try {
+                ProfileEntity profile = database.profileDao().get(profileId);
+                if (profile == null) {
+                    throw new IllegalArgumentException("Профиль не найден");
+                }
+                String cleanedName = clean(name);
+                if (cleanedName.isEmpty()) {
+                    throw new IllegalArgumentException("Введите имя или псевдоним");
+                }
+                ProfileEntity sameName = database.profileDao().findByName(cleanedName);
+                if (sameName != null && sameName.id != profileId) {
+                    throw new IllegalArgumentException("Профиль с таким именем уже существует");
+                }
+                profile.name = cleanedName;
+                profile.birthDate = emptyToNull(birthDate);
+                profile.sex = emptyToNull(sex);
+                if (database.profileDao().update(profile) == 0) {
+                    throw new IllegalArgumentException("Профиль не найден");
+                }
+                callback.onSuccess(profile);
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public void deleteProfile(long profileId, Callback<Void> callback) {
+        executor.execute(() -> {
+            try {
+                if (database.profileDao().count() <= 1) {
+                    throw new IllegalArgumentException("Нельзя удалить единственный профиль");
+                }
+                if (database.profileDao().get(profileId) == null) {
+                    throw new IllegalArgumentException("Профиль не найден");
+                }
+                List<File> managedFiles = new ArrayList<>();
+                for (AnalysisDocumentEntity document : database.analysisDao().getDocuments(profileId)) {
+                    if (document.localPath == null) {
+                        continue;
+                    }
+                    try {
+                        File file = requireManagedDocument(document.localPath);
+                        if (file.isFile()) {
+                            managedFiles.add(file);
+                        }
+                    } catch (IOException ignored) {
+                        // Никогда не удаляем путь за пределами внутренней папки приложения.
+                    }
+                }
+                if (database.profileDao().delete(profileId) == 0) {
+                    throw new IllegalArgumentException("Профиль не найден");
+                }
+                for (File file : managedFiles) {
+                    //noinspection ResultOfMethodCallIgnored
+                    file.delete();
+                }
+                callback.onSuccess(null);
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
     }
 
     public void importDocument(
@@ -540,6 +631,11 @@ public class AnalysisRepository {
 
     private String clean(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String emptyToNull(String value) {
+        String cleaned = clean(value);
+        return cleaned.isEmpty() ? null : cleaned;
     }
 
     private LabResultEntity createResult(

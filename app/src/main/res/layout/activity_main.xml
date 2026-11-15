@@ -48,6 +48,14 @@
             android:contentDescription="@string/add_profile"
             android:text="@string/add_symbol"
             android:textSize="22sp" />
+
+        <Button
+            android:id="@+id/editProfileButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/edit_profile"
+            android:text="@string/edit_symbol"
+            android:textSize="20sp" />
     </LinearLayout>
 
     <Button

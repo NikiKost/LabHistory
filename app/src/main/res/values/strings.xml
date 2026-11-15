@@ -3,6 +3,7 @@
     <string name="local_only_notice">Данные хранятся локально на этом устройстве</string>
     <string name="profile_label">Профиль</string>
     <string name="add_profile">Добавить профиль</string>
+    <string name="edit_profile">Изменить выбранный профиль</string>
     <string name="import_document">Загрузить PDF или фото</string>
     <string name="manual_result">Добавить результат вручную</string>
     <string name="open_indicators">Показатели и графики</string>
@@ -15,6 +16,7 @@
     <string name="documents_title">Документы и результаты</string>
     <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
     <string name="add_symbol">+</string>
+    <string name="edit_symbol">✎</string>
     <string name="back">Назад</string>
     <string name="back_symbol">‹</string>
     <string name="document_preview">Предпросмотр документа</string>

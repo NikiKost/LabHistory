@@ -4,7 +4,8 @@ Android-приложение на Java для личного учёта лабо
 
 ## Что уже работает
 
-- создание нескольких профилей;
+- создание нескольких профилей с необязательными датой рождения и полом;
+- редактирование имени и данных профиля, безопасное удаление профиля вместе с его локальными документами;
 - локальная база Room;
 - ручное добавление показателя, значения, единицы и референса;
 - выбор PDF или изображения через системное окно Android;
@@ -80,8 +81,8 @@ Release-версия проверяет публичный файл `update.json
 Публикация запускается тегом, совпадающим с `versionName`, например:
 
 ```powershell
-git tag v0.9.0
-git push origin v0.9.0
+git tag v0.10.0
+git push origin v0.10.0
 ```
 
 Workflow `.github/workflows/release.yml` требует GitHub Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` и `ANDROID_KEY_PASSWORD`.

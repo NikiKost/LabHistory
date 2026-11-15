@@ -13,6 +13,8 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -43,6 +45,7 @@ import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.ProfileEntity;
 import ru.labhistory.app.databinding.ActivityMainBinding;
 import ru.labhistory.app.domain.ManualResultInput;
+import ru.labhistory.app.domain.ProfileValidator;
 import ru.labhistory.app.update.UpdateChecker;
 import ru.labhistory.app.update.UpdateDownloader;
 import ru.labhistory.app.update.UpdateInfo;
@@ -102,6 +105,7 @@ public class MainActivity extends SecureActivity {
         setIntent(new Intent());
 
         binding.addProfileButton.setOnClickListener(view -> showAddProfileDialog());
+        binding.editProfileButton.setOnClickListener(view -> showEditProfileDialog());
         binding.importButton.setOnClickListener(view -> openDocumentLauncher.launch(
                 new String[]{"application/pdf", "image/*"}
         ));
@@ -577,6 +581,7 @@ public class MainActivity extends SecureActivity {
     private void renderProfiles(List<ProfileEntity> updatedProfiles) {
         long previousId = getSelectedProfileId();
         profiles = updatedProfiles == null ? new ArrayList<>() : new ArrayList<>(updatedProfiles);
+        binding.editProfileButton.setEnabled(!profiles.isEmpty());
 
         ArrayAdapter<ProfileEntity> adapter = new ArrayAdapter<>(
                 this,
@@ -692,27 +697,159 @@ public class MainActivity extends SecureActivity {
     }
 
     private void showAddProfileDialog() {
-        EditText nameField = createField("Имя или псевдоним");
+        showProfileDialog(null);
+    }
+
+    private void showEditProfileDialog() {
+        int position = binding.profileSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= profiles.size()) {
+            Toast.makeText(this, "Сначала создайте профиль", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        showProfileDialog(profiles.get(position));
+    }
+
+    private void showProfileDialog(ProfileEntity profile) {
+        boolean editing = profile != null;
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        fields.setPadding(padding, dp(8), padding, dp(8));
+
+        EditText nameField = addField(fields, "Имя или псевдоним");
         nameField.setSingleLine(true);
+        EditText birthDateField = addField(fields, "Дата рождения, дд.мм.гггг (необязательно)");
+        birthDateField.setSingleLine(true);
+        birthDateField.setInputType(
+                InputType.TYPE_CLASS_DATETIME | InputType.TYPE_DATETIME_VARIATION_DATE
+        );
 
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Новый профиль")
-                .setMessage("Для друга или родственника можно использовать псевдоним.")
-                .setView(nameField)
-                .setNegativeButton("Отмена", null)
-                .setPositiveButton("Добавить", null)
-                .create();
+        TextView sexLabel = new TextView(this);
+        sexLabel.setText("Пол (необязательно)");
+        sexLabel.setPadding(0, dp(8), 0, 0);
+        fields.addView(sexLabel);
+        Spinner sexSpinner = new Spinner(this);
+        String[] sexOptions = {"Не указан", "Мужской", "Женский"};
+        ArrayAdapter<String> sexAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_item,
+                sexOptions
+        );
+        sexAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        sexSpinner.setAdapter(sexAdapter);
+        fields.addView(sexSpinner, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(48)
+        ));
 
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
-            String name = nameField.getText().toString().trim();
-            if (name.isEmpty()) {
-                nameField.setError("Введите имя");
-                return;
+        if (editing) {
+            nameField.setText(profile.name);
+            birthDateField.setText(profile.birthDate == null ? "" : profile.birthDate);
+            if ("Мужской".equalsIgnoreCase(profile.sex)) {
+                sexSpinner.setSelection(1);
+            } else if ("Женский".equalsIgnoreCase(profile.sex)) {
+                sexSpinner.setSelection(2);
             }
-            repository.addProfile(name);
-            dialog.dismiss();
-        }));
+        }
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(fields);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+                .setTitle(editing ? "Изменить профиль" : "Новый профиль")
+                .setMessage("Для друга или родственника можно использовать псевдоним.")
+                .setView(scrollView)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton(editing ? "Сохранить" : "Добавить", null);
+        if (editing && profiles.size() > 1) {
+            builder.setNeutralButton("Удалить", null);
+        }
+        AlertDialog dialog = builder.create();
+
+        dialog.setOnShowListener(ignored -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+                String name = text(nameField);
+                String birthDate = text(birthDateField);
+                if (name.isEmpty()) {
+                    nameField.setError("Введите имя");
+                    return;
+                }
+                if (!ProfileValidator.isValidBirthDate(birthDate)) {
+                    birthDateField.setError("Используйте дату дд.мм.гггг не позднее сегодняшней");
+                    return;
+                }
+                String sex = sexSpinner.getSelectedItemPosition() == 0
+                        ? ""
+                        : sexOptions[sexSpinner.getSelectedItemPosition()];
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+                AnalysisRepository.Callback<ProfileEntity> callback = new AnalysisRepository.Callback<>() {
+                    @Override
+                    public void onSuccess(ProfileEntity savedProfile) {
+                        runOnUiThread(() -> {
+                            dialog.dismiss();
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    editing ? "Профиль изменён" : "Профиль добавлен",
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        });
+                    }
+
+                    @Override
+                    public void onError(Exception error) {
+                        runOnUiThread(() -> {
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Не удалось сохранить профиль: " + safeMessage(error),
+                                    Toast.LENGTH_LONG
+                            ).show();
+                        });
+                    }
+                };
+                if (editing) {
+                    repository.updateProfile(profile.id, name, birthDate, sex, callback);
+                } else {
+                    repository.addProfile(name, birthDate, sex, callback);
+                }
+            });
+            if (editing && profiles.size() > 1) {
+                dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(view -> {
+                    dialog.dismiss();
+                    confirmProfileDeletion(profile);
+                });
+            }
+        });
         dialog.show();
+    }
+
+    private void confirmProfileDeletion(ProfileEntity profile) {
+        new AlertDialog.Builder(this)
+                .setTitle("Удалить профиль «" + profile.name + "»?")
+                .setMessage("Будут удалены все документы, фотографии и показатели этого профиля. Отменить действие нельзя.")
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Удалить", (dialog, which) -> repository.deleteProfile(
+                        profile.id,
+                        new AnalysisRepository.Callback<>() {
+                            @Override
+                            public void onSuccess(Void value) {
+                                runOnUiThread(() -> Toast.makeText(
+                                        MainActivity.this,
+                                        "Профиль удалён",
+                                        Toast.LENGTH_SHORT
+                                ).show());
+                            }
+
+                            @Override
+                            public void onError(Exception error) {
+                                runOnUiThread(() -> Toast.makeText(
+                                        MainActivity.this,
+                                        "Не удалось удалить профиль: " + safeMessage(error),
+                                        Toast.LENGTH_LONG
+                                ).show());
+                            }
+                        }
+                ))
+                .show();
     }
 
     private void showManualResultDialog() {
