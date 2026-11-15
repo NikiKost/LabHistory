@@ -21,7 +21,7 @@ import ru.labhistory.app.data.AnalysisDocumentEntity;
 
 public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
     private final LayoutInflater inflater;
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy, HH:mm", new Locale("ru", "RU"));
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU"));
 
     public DocumentListAdapter(Context context) {
         super(context, 0, new ArrayList<>());
@@ -54,8 +54,16 @@ public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
 
         AnalysisDocumentEntity document = getItem(position);
         if (document != null) {
-            holder.title.setText(document.labName + " • " + document.sourceType);
-            holder.subtitle.setText(dateFormat.format(new Date(document.analysisDate)) + "\n" + document.originalFileName);
+            holder.title.setText(getContext().getString(
+                    R.string.document_title_format,
+                    document.labName,
+                    document.sourceType
+            ));
+            holder.subtitle.setText(getContext().getString(
+                    R.string.document_subtitle_format,
+                    dateFormat.format(new Date(document.analysisDate)),
+                    document.originalFileName
+            ));
             holder.status.setText(document.importStatus);
         }
         return convertView;

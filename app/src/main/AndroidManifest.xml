@@ -24,6 +24,22 @@
         </provider>
 
         <activity
+            android:name=".ui.DocumentDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.ReviewResultsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.IndicatorsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.IndicatorHistoryActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.MainActivity"
             android:exported="true">
             <intent-filter>

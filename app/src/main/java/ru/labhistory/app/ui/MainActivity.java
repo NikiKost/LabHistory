@@ -1,6 +1,7 @@
 package ru.labhistory.app.ui;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -19,6 +20,11 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.IntentCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.lifecycle.LiveData;
 
 import java.util.ArrayList;
@@ -27,7 +33,6 @@ import java.util.List;
 import ru.labhistory.app.BuildConfig;
 import ru.labhistory.app.data.AnalysisDocumentEntity;
 import ru.labhistory.app.data.AnalysisRepository;
-import ru.labhistory.app.data.LabResultEntity;
 import ru.labhistory.app.data.ProfileEntity;
 import ru.labhistory.app.databinding.ActivityMainBinding;
 import ru.labhistory.app.domain.ManualResultInput;
@@ -59,8 +64,10 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        applySystemInsets();
 
         repository = new AnalysisRepository(this);
         updateChecker = new UpdateChecker();
@@ -77,11 +84,12 @@ public class MainActivity extends AppCompatActivity {
                 new String[]{"application/pdf", "image/*"}
         ));
         binding.manualButton.setOnClickListener(view -> showManualResultDialog());
+        binding.indicatorsButton.setOnClickListener(view -> openIndicators());
         binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
         binding.documentsList.setOnItemClickListener((parent, view, position, id) -> {
             AnalysisDocumentEntity document = documentAdapter.getItem(position);
             if (document != null) {
-                showDocumentDetails(document);
+                startActivity(DocumentDetailActivity.createIntent(this, document.id));
             }
         });
         binding.profileSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(
@@ -322,6 +330,16 @@ public class MainActivity extends AppCompatActivity {
         return profiles.get(position).id;
     }
 
+    private void openIndicators() {
+        int position = binding.profileSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= profiles.size()) {
+            Toast.makeText(this, "Сначала создайте профиль", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ProfileEntity profile = profiles.get(position);
+        startActivity(IndicatorsActivity.createIntent(this, profile.id, profile.name));
+    }
+
     private void onDocumentSelected(Uri uri) {
         if (uri != null) {
             importUri(uri);
@@ -341,9 +359,28 @@ public class MainActivity extends AppCompatActivity {
             public void onSuccess(AnalysisDocumentEntity value) {
                 runOnUiThread(() -> Toast.makeText(
                         MainActivity.this,
-                        "Документ сохранён",
-                        Toast.LENGTH_SHORT
+                        "Документ сохранён. Начинаю локальную обработку…",
+                        Toast.LENGTH_LONG
                 ).show());
+                repository.recognizeDocument(value.id, new AnalysisRepository.Callback<>() {
+                    @Override
+                    public void onSuccess(AnalysisDocumentEntity recognizedDocument) {
+                        runOnUiThread(() -> Toast.makeText(
+                                MainActivity.this,
+                                "Данные извлечены — откройте документ и проверьте их",
+                                Toast.LENGTH_LONG
+                        ).show());
+                    }
+
+                    @Override
+                    public void onError(Exception error) {
+                        runOnUiThread(() -> Toast.makeText(
+                                MainActivity.this,
+                                "Документ сохранён, но обработка не завершена: " + safeMessage(error),
+                                Toast.LENGTH_LONG
+                        ).show());
+                    }
+                });
             }
 
             @Override
@@ -458,51 +495,6 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void showDocumentDetails(AnalysisDocumentEntity document) {
-        repository.loadResults(document.id, new AnalysisRepository.Callback<>() {
-            @Override
-            public void onSuccess(List<LabResultEntity> results) {
-                runOnUiThread(() -> {
-                    StringBuilder message = new StringBuilder();
-                    message.append("Источник: ").append(document.originalFileName).append("\n");
-                    message.append("Статус: ").append(document.importStatus).append("\n\n");
-
-                    if (results.isEmpty()) {
-                        message.append("Оригинал сохранён внутри приложения. Распознавание PDF и фотографий будет подключено на следующем этапе.");
-                    } else {
-                        for (LabResultEntity result : results) {
-                            message.append(result.testName)
-                                    .append(": ")
-                                    .append(result.rawValue);
-                            if (result.unit != null && !result.unit.trim().isEmpty()) {
-                                message.append(' ').append(result.unit);
-                            }
-                            if (result.referenceText != null && !result.referenceText.trim().isEmpty()) {
-                                message.append("\nРеференс: ").append(result.referenceText);
-                            }
-                            message.append("\n\n");
-                        }
-                    }
-
-                    new AlertDialog.Builder(MainActivity.this)
-                            .setTitle(document.labName)
-                            .setMessage(message.toString().trim())
-                            .setPositiveButton("Закрыть", null)
-                            .show();
-                });
-            }
-
-            @Override
-            public void onError(Exception error) {
-                runOnUiThread(() -> Toast.makeText(
-                        MainActivity.this,
-                        "Не удалось открыть результат: " + safeMessage(error),
-                        Toast.LENGTH_LONG
-                ).show());
-            }
-        });
-    }
-
     private Uri extractIncomingUri(Intent intent) {
         if (intent == null) {
             return null;
@@ -540,6 +532,29 @@ public class MainActivity extends AppCompatActivity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private void applySystemInsets() {
+        boolean isNight = (getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(
+                getWindow(),
+                binding.getRoot()
+        );
+        controller.setAppearanceLightStatusBars(!isNight);
+        controller.setAppearanceLightNavigationBars(!isNight);
+
+        int basePadding = dp(16);
+        ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(
+                    basePadding + bars.left,
+                    basePadding + bars.top,
+                    basePadding + bars.right,
+                    basePadding + bars.bottom
+            );
+            return windowInsets;
+        });
     }
 
     private String safeMessage(Exception error) {

@@ -2,10 +2,12 @@
 <data-extraction-rules>
     <cloud-backup disableIfNoEncryptionCapabilities="true">
         <exclude domain="file" path="analysis_documents/" />
+        <exclude domain="file" path="tesseract/" />
         <exclude domain="database" path="." />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="analysis_documents/" />
+        <exclude domain="file" path="tesseract/" />
         <exclude domain="database" path="." />
     </device-transfer>
 </data-extraction-rules>

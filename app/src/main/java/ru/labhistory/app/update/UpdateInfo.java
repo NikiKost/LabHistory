@@ -4,6 +4,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.Locale;
+
 public final class UpdateInfo {
     public final int versionCode;
     public final String versionName;
@@ -38,7 +40,7 @@ public final class UpdateInfo {
         int minimumAndroid = object.optInt("minimumAndroid", 26);
         boolean required = object.optBoolean("required", false);
         String apkUrl = object.getString("apkUrl");
-        String sha256 = object.getString("sha256").toLowerCase();
+        String sha256 = object.getString("sha256").toLowerCase(Locale.ROOT);
 
         if (!apkUrl.startsWith("https://")) {
             throw new JSONException("Адрес APK должен использовать HTTPS");

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="history_period_filters">
+        <item>Все даты</item>
+        <item>Последний год</item>
+        <item>Последние 3 года</item>
+        <item>Последние 5 лет</item>
+    </string-array>
+</resources>

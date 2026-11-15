@@ -21,9 +21,12 @@ public class LabResultEntity {
 
     public long documentId;
     public String testName;
+    public String canonicalKey;
+    public String canonicalName;
     public String rawValue;
     public String numericValue;
     public String unit;
+    public String canonicalUnit;
     public String referenceLow;
     public String referenceHigh;
     public String referenceText;
@@ -32,9 +35,12 @@ public class LabResultEntity {
     public LabResultEntity(
             long documentId,
             String testName,
+            String canonicalKey,
+            String canonicalName,
             String rawValue,
             String numericValue,
             String unit,
+            String canonicalUnit,
             String referenceLow,
             String referenceHigh,
             String referenceText,
@@ -42,9 +48,12 @@ public class LabResultEntity {
     ) {
         this.documentId = documentId;
         this.testName = testName;
+        this.canonicalKey = canonicalKey;
+        this.canonicalName = canonicalName;
         this.rawValue = rawValue;
         this.numericValue = numericValue;
         this.unit = unit;
+        this.canonicalUnit = canonicalUnit;
         this.referenceLow = referenceLow;
         this.referenceHigh = referenceHigh;
         this.referenceText = referenceText;

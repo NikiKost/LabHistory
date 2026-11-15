@@ -8,10 +8,13 @@
 .android-sdk/
 .tools/
 .codex-attachments/
+.codex-remote-attachments/
 .codex/
 build/
 **/build/
+tmp/
 dist/
+gradle/gradle-daemon-jvm.properties
 *.apk
 *.aab
 

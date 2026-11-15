@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -26,6 +28,7 @@ public class DocumentImporter {
         }
 
         File destination = new File(directory, UUID.randomUUID() + extension);
+        MessageDigest digest = newSha256();
         try (InputStream input = resolver.openInputStream(uri);
              FileOutputStream output = new FileOutputStream(destination)) {
             if (input == null) {
@@ -36,6 +39,7 @@ public class DocumentImporter {
             int read;
             while ((read = input.read(buffer)) != -1) {
                 output.write(buffer, 0, read);
+                digest.update(buffer, 0, read);
             }
         } catch (IOException error) {
             //noinspection ResultOfMethodCallIgnored
@@ -45,7 +49,13 @@ public class DocumentImporter {
 
         String sourceType = isPdf(mimeType, extension) ? "PDF" : "IMAGE";
         String labName = LabFormatDetector.detect(displayName);
-        return new ImportedDocument(displayName, destination.getAbsolutePath(), sourceType, labName);
+        return new ImportedDocument(
+                displayName,
+                destination.getAbsolutePath(),
+                toHex(digest.digest()),
+                sourceType,
+                labName
+        );
     }
 
     private String resolveDisplayName(ContentResolver resolver, Uri uri) {
@@ -84,5 +94,21 @@ public class DocumentImporter {
 
     private boolean isPdf(String mimeType, String extension) {
         return "application/pdf".equalsIgnoreCase(mimeType) || ".pdf".equals(extension);
+    }
+
+    private MessageDigest newSha256() {
+        try {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException error) {
+            throw new IllegalStateException("SHA-256 недоступен", error);
+        }
+    }
+
+    private String toHex(byte[] value) {
+        StringBuilder result = new StringBuilder(value.length * 2);
+        for (byte item : value) {
+            result.append(String.format(Locale.ROOT, "%02x", item & 0xff));
+        }
+        return result.toString();
     }
 }

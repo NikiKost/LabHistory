@@ -4,4 +4,8 @@
     <color name="accent">#E58D45</color>
     <color name="surface_soft">#EDF5F2</color>
     <color name="text_secondary">#52605C</color>
+    <color name="background">#F8FAF9</color>
+    <color name="text_primary">#17221F</color>
+    <color name="danger">#B3261E</color>
+    <color name="chart_grid">#C9D7D2</color>
 </resources>
