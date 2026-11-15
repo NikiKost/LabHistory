@@ -7,7 +7,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
 import android.text.InputType;
+import android.text.TextWatcher;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -107,6 +109,20 @@ public class MainActivity extends SecureActivity {
         documentAdapter = new DocumentListAdapter(this);
         binding.documentsList.setAdapter(documentAdapter);
         binding.documentsList.setEmptyView(binding.emptyView);
+        binding.documentSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+                documentAdapter.setQuery(text == null ? "" : text.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable text) {
+            }
+        });
 
         pendingIncomingUri = extractIncomingUri(getIntent());
         setIntent(new Intent());

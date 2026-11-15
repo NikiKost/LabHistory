@@ -18,10 +18,20 @@ import java.util.Locale;
 
 import ru.labhistory.app.R;
 import ru.labhistory.app.data.AnalysisDocumentEntity;
+import ru.labhistory.app.domain.DocumentSearch;
 
 public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
     private final LayoutInflater inflater;
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU"));
+    private final List<AnalysisDocumentEntity> sourceDocuments = new ArrayList<>();
+    private final SimpleDateFormat dateKeyFormat = new SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.ROOT
+    );
+    private final SimpleDateFormat dateHeaderFormat = new SimpleDateFormat(
+            "d MMMM yyyy",
+            new Locale("ru", "RU")
+    );
+    private String query = "";
 
     public DocumentListAdapter(Context context) {
         super(context, 0, new ArrayList<>());
@@ -29,9 +39,24 @@ public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
     }
 
     public void replaceAll(List<AnalysisDocumentEntity> documents) {
-        clear();
+        sourceDocuments.clear();
         if (documents != null) {
-            addAll(documents);
+            sourceDocuments.addAll(documents);
+        }
+        applyFilter();
+    }
+
+    public void setQuery(String query) {
+        this.query = query == null ? "" : query;
+        applyFilter();
+    }
+
+    private void applyFilter() {
+        clear();
+        for (AnalysisDocumentEntity document : sourceDocuments) {
+            if (DocumentSearch.matches(document, query)) {
+                add(document);
+            }
         }
         notifyDataSetChanged();
     }
@@ -43,6 +68,7 @@ public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
         if (convertView == null) {
             convertView = inflater.inflate(R.layout.item_document, parent, false);
             holder = new ViewHolder(
+                    convertView.findViewById(R.id.dateHeaderText),
                     convertView.findViewById(R.id.titleText),
                     convertView.findViewById(R.id.subtitleText),
                     convertView.findViewById(R.id.statusText)
@@ -54,27 +80,34 @@ public class DocumentListAdapter extends ArrayAdapter<AnalysisDocumentEntity> {
 
         AnalysisDocumentEntity document = getItem(position);
         if (document != null) {
+            String currentDateKey = dateKeyFormat.format(new Date(document.analysisDate));
+            AnalysisDocumentEntity previous = position == 0 ? null : getItem(position - 1);
+            boolean showDateHeader = previous == null || !currentDateKey.equals(
+                    dateKeyFormat.format(new Date(previous.analysisDate))
+            );
+            holder.dateHeader.setVisibility(showDateHeader ? View.VISIBLE : View.GONE);
+            if (showDateHeader) {
+                holder.dateHeader.setText(dateHeaderFormat.format(new Date(document.analysisDate)));
+            }
             holder.title.setText(getContext().getString(
                     R.string.document_title_format,
                     document.labName,
                     document.sourceType
             ));
-            holder.subtitle.setText(getContext().getString(
-                    R.string.document_subtitle_format,
-                    dateFormat.format(new Date(document.analysisDate)),
-                    document.originalFileName
-            ));
+            holder.subtitle.setText(document.originalFileName);
             holder.status.setText(document.importStatus);
         }
         return convertView;
     }
 
     private static class ViewHolder {
+        final TextView dateHeader;
         final TextView title;
         final TextView subtitle;
         final TextView status;
 
-        ViewHolder(TextView title, TextView subtitle, TextView status) {
+        ViewHolder(TextView dateHeader, TextView title, TextView subtitle, TextView status) {
+            this.dateHeader = dateHeader;
             this.title = title;
             this.subtitle = subtitle;
             this.status = status;

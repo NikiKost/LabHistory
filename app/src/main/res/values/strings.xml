@@ -15,6 +15,7 @@
     <string name="restore_in_progress">Восстанавливаю данные…</string>
     <string name="csv_export_in_progress">Экспортирую CSV…</string>
     <string name="documents_title">Документы и результаты</string>
+    <string name="search_documents_hint">Поиск по лаборатории или имени файла</string>
     <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
     <string name="add_symbol">+</string>
     <string name="edit_symbol">✎</string>

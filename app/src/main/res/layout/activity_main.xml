@@ -104,6 +104,15 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
+    <EditText
+        android:id="@+id/documentSearch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/search_documents_hint"
+        android:imeOptions="actionDone"
+        android:inputType="text"
+        android:maxLines="1" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
