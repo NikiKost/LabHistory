@@ -7,6 +7,9 @@
     <string name="manual_result">Добавить результат вручную</string>
     <string name="open_indicators">Показатели и графики</string>
     <string name="check_updates">Проверить обновления</string>
+    <string name="backup_and_restore">Резервная копия</string>
+    <string name="backup_in_progress">Создаю резервную копию…</string>
+    <string name="restore_in_progress">Восстанавливаю данные…</string>
     <string name="documents_title">Документы и результаты</string>
     <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
     <string name="add_symbol">+</string>
@@ -60,4 +63,8 @@
     <string name="delete_measurement">Удалить эту запись</string>
     <string name="delete_measurement_title">Удалить измерение?</string>
     <string name="delete_measurement_message">Запись исчезнет из истории и графика. Исходный PDF или фотография останутся в приложении.</string>
+    <string name="backup_password_title">Пароль резервной копии</string>
+    <string name="backup_password_message">Не менее 8 символов. Без этого пароля восстановить данные будет невозможно.</string>
+    <string name="backup_password_hint">Пароль</string>
+    <string name="backup_password_repeat_hint">Повторите пароль</string>
 </resources>

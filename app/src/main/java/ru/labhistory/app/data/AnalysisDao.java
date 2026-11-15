@@ -13,6 +13,9 @@ public interface AnalysisDao {
     @Query("SELECT * FROM analysis_documents WHERE profileId = :profileId ORDER BY analysisDate DESC, id DESC")
     LiveData<List<AnalysisDocumentEntity>> observeDocuments(long profileId);
 
+    @Query("SELECT * FROM analysis_documents WHERE profileId = :profileId ORDER BY analysisDate ASC, id ASC")
+    List<AnalysisDocumentEntity> getDocuments(long profileId);
+
     @Query("SELECT * FROM analysis_documents WHERE id = :documentId LIMIT 1")
     AnalysisDocumentEntity getDocument(long documentId);
 
@@ -22,6 +25,11 @@ public interface AnalysisDao {
     @Query("SELECT id FROM analysis_documents WHERE profileId = :profileId "
             + "AND contentHash = :contentHash LIMIT 1")
     Long findDocumentIdByHash(long profileId, String contentHash);
+
+    @Query("SELECT id FROM analysis_documents WHERE profileId = :profileId "
+            + "AND sourceType = 'MANUAL' AND analysisDate = :analysisDate "
+            + "AND createdAt = :createdAt LIMIT 1")
+    Long findManualDocumentId(long profileId, long analysisDate, long createdAt);
 
     @Query("SELECT * FROM analysis_documents WHERE contentHash IS NULL AND localPath IS NOT NULL")
     List<AnalysisDocumentEntity> getDocumentsMissingContentHash();

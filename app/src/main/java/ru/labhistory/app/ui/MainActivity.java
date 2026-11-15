@@ -27,10 +27,17 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.lifecycle.LiveData;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import ru.labhistory.app.BuildConfig;
+import ru.labhistory.app.R;
+import ru.labhistory.app.backup.BackupRepository;
+import ru.labhistory.app.backup.BackupSummary;
 import ru.labhistory.app.data.AnalysisDocumentEntity;
 import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.ProfileEntity;
@@ -47,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private AnalysisRepository repository;
+    private BackupRepository backupRepository;
     private DocumentListAdapter documentAdapter;
     private UpdateChecker updateChecker;
     private UpdateDownloader updateDownloader;
@@ -57,9 +65,22 @@ public class MainActivity extends AppCompatActivity {
     private boolean updateInspectionRunning;
     private boolean updateReadyDialogShown;
     private boolean awaitingInstallPermission;
+    private char[] pendingExportPassword;
 
     private final ActivityResultLauncher<String[]> openDocumentLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onDocumentSelected);
+
+    private final ActivityResultLauncher<String> createBackupLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.CreateDocument("application/octet-stream"),
+                    this::onBackupDestinationSelected
+            );
+
+    private final ActivityResultLauncher<String[]> openBackupLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.OpenDocument(),
+                    this::onBackupSourceSelected
+            );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
         applySystemInsets();
 
         repository = new AnalysisRepository(this);
+        backupRepository = new BackupRepository(this);
         updateChecker = new UpdateChecker();
         updateDownloader = new UpdateDownloader(this);
         documentAdapter = new DocumentListAdapter(this);
@@ -86,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
         binding.manualButton.setOnClickListener(view -> showManualResultDialog());
         binding.indicatorsButton.setOnClickListener(view -> openIndicators());
         binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
+        binding.backupButton.setOnClickListener(view -> showBackupActions());
         binding.documentsList.setOnItemClickListener((parent, view, position, id) -> {
             AnalysisDocumentEntity document = documentAdapter.getItem(position);
             if (document != null) {
@@ -118,6 +141,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         updateHandler.removeCallbacksAndMessages(null);
+        clearPendingExportPassword();
         super.onDestroy();
     }
 
@@ -131,6 +155,215 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 importUri(incoming);
             }
+        }
+    }
+
+    private void showBackupActions() {
+        new AlertDialog.Builder(this)
+                .setTitle("Резервная копия")
+                .setItems(
+                        new String[]{
+                                "Создать зашифрованную копию",
+                                "Восстановить из копии"
+                        },
+                        (dialog, which) -> {
+                            if (which == 0) {
+                                beginBackupExport();
+                            } else {
+                                openBackupLauncher.launch(new String[]{
+                                        "application/octet-stream",
+                                        "application/zip",
+                                        "*/*"
+                                });
+                            }
+                        }
+                )
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    private void beginBackupExport() {
+        showBackupPasswordDialog(true, password -> {
+            clearPendingExportPassword();
+            pendingExportPassword = password;
+            String date = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(new Date());
+            createBackupLauncher.launch("LabHistory-" + date + ".labbackup");
+        });
+    }
+
+    private void onBackupDestinationSelected(Uri destination) {
+        char[] password = pendingExportPassword;
+        pendingExportPassword = null;
+        if (password == null) {
+            return;
+        }
+        if (destination == null) {
+            Arrays.fill(password, '\0');
+            return;
+        }
+
+        setBackupBusy(true, false);
+        try {
+            backupRepository.exportBackup(destination, password, new BackupRepository.Callback() {
+                @Override
+                public void onSuccess(BackupSummary summary) {
+                    runOnUiThread(() -> {
+                        setBackupBusy(false, false);
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Копия создана: профилей " + summary.profiles
+                                        + ", документов " + summary.documents
+                                        + ", показателей " + summary.results,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    });
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    runOnUiThread(() -> {
+                        setBackupBusy(false, false);
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Не удалось создать копию: " + safeMessage(error),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    });
+                }
+            });
+        } catch (Exception error) {
+            setBackupBusy(false, false);
+            Toast.makeText(
+                    this,
+                    "Не удалось создать копию: " + safeMessage(error),
+                    Toast.LENGTH_LONG
+            ).show();
+        } finally {
+            Arrays.fill(password, '\0');
+        }
+    }
+
+    private void onBackupSourceSelected(Uri source) {
+        if (source == null) {
+            return;
+        }
+        showBackupPasswordDialog(false, password -> restoreBackup(source, password));
+    }
+
+    private void restoreBackup(Uri source, char[] password) {
+        setBackupBusy(true, true);
+        try {
+            backupRepository.importBackup(source, password, new BackupRepository.Callback() {
+                @Override
+                public void onSuccess(BackupSummary summary) {
+                    runOnUiThread(() -> {
+                        setBackupBusy(false, true);
+                        String duplicates = summary.skippedDuplicates == 0
+                                ? ""
+                                : ", пропущено повторов " + summary.skippedDuplicates;
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Восстановлено: профилей " + summary.profiles
+                                        + ", документов " + summary.documents
+                                        + ", показателей " + summary.results
+                                        + duplicates,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    });
+                }
+
+                @Override
+                public void onError(Exception error) {
+                    runOnUiThread(() -> {
+                        setBackupBusy(false, true);
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Не удалось восстановить копию: " + safeMessage(error),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    });
+                }
+            });
+        } catch (Exception error) {
+            setBackupBusy(false, true);
+            Toast.makeText(
+                    this,
+                    "Не удалось восстановить копию: " + safeMessage(error),
+                    Toast.LENGTH_LONG
+            ).show();
+        } finally {
+            Arrays.fill(password, '\0');
+        }
+    }
+
+    private void showBackupPasswordDialog(boolean requireConfirmation, PasswordCallback callback) {
+        LinearLayout fields = new LinearLayout(this);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(20);
+        fields.setPadding(padding, dp(4), padding, 0);
+
+        EditText passwordField = addField(fields, getString(R.string.backup_password_hint));
+        passwordField.setInputType(
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+        );
+        EditText repeatedField = null;
+        if (requireConfirmation) {
+            repeatedField = addField(
+                    fields,
+                    getString(R.string.backup_password_repeat_hint)
+            );
+            repeatedField.setInputType(
+                    InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD
+            );
+        }
+        EditText confirmationField = repeatedField;
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.backup_password_title)
+                .setMessage(R.string.backup_password_message)
+                .setView(fields)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton(requireConfirmation ? "Создать" : "Восстановить", null)
+                .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    char[] password = passwordField.getText().toString().toCharArray();
+                    if (password.length < 8) {
+                        Arrays.fill(password, '\0');
+                        passwordField.setError("Минимум 8 символов");
+                        return;
+                    }
+                    if (confirmationField != null) {
+                        char[] confirmation = confirmationField.getText().toString().toCharArray();
+                        boolean matches = Arrays.equals(password, confirmation);
+                        Arrays.fill(confirmation, '\0');
+                        if (!matches) {
+                            Arrays.fill(password, '\0');
+                            confirmationField.setError("Пароли не совпадают");
+                            return;
+                        }
+                    }
+                    callback.onPassword(password);
+                    dialog.dismiss();
+                }));
+        dialog.show();
+    }
+
+    private void setBackupBusy(boolean busy, boolean restoring) {
+        binding.backupButton.setEnabled(!busy);
+        binding.backupButton.setText(
+                busy
+                        ? (restoring
+                        ? R.string.restore_in_progress
+                        : R.string.backup_in_progress)
+                        : R.string.backup_and_restore
+        );
+    }
+
+    private void clearPendingExportPassword() {
+        if (pendingExportPassword != null) {
+            Arrays.fill(pendingExportPassword, '\0');
+            pendingExportPassword = null;
         }
     }
 
@@ -559,5 +792,9 @@ public class MainActivity extends AppCompatActivity {
 
     private String safeMessage(Exception error) {
         return error.getMessage() == null ? error.getClass().getSimpleName() : error.getMessage();
+    }
+
+    private interface PasswordCallback {
+        void onPassword(char[] password);
     }
 }

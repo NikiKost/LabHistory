@@ -15,6 +15,12 @@ public interface ProfileDao {
     @Query("SELECT COUNT(*) FROM profiles")
     int count();
 
+    @Query("SELECT * FROM profiles ORDER BY createdAt ASC")
+    List<ProfileEntity> getAll();
+
+    @Query("SELECT * FROM profiles WHERE name = :name COLLATE NOCASE ORDER BY id ASC LIMIT 1")
+    ProfileEntity findByName(String name);
+
     @Insert
     long insert(ProfileEntity profile);
 }
