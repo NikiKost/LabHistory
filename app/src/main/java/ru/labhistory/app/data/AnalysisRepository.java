@@ -6,7 +6,11 @@ import android.net.Uri;
 import androidx.lifecycle.LiveData;
 
 import java.io.File;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -14,6 +18,7 @@ import java.util.concurrent.Executors;
 
 import ru.labhistory.app.domain.ManualResultInput;
 import ru.labhistory.app.domain.ReviewResultInput;
+import ru.labhistory.app.export.CsvProfileExporter;
 import ru.labhistory.app.importer.DocumentImporter;
 import ru.labhistory.app.importer.DocumentHasher;
 import ru.labhistory.app.importer.ImportedDocument;
@@ -275,6 +280,39 @@ public class AnalysisRepository {
         executor.execute(() -> {
             try {
                 callback.onSuccess(database.analysisDao().getIndicatorSummaries(profileId));
+            } catch (Exception error) {
+                callback.onError(error);
+            }
+        });
+    }
+
+    public void exportProfileCsv(
+            long profileId,
+            Uri destination,
+            Callback<Integer> callback
+    ) {
+        executor.execute(() -> {
+            try {
+                ProfileEntity profile = database.profileDao().get(profileId);
+                if (profile == null) {
+                    throw new IllegalArgumentException("Профиль не найден");
+                }
+                List<ProfileExportRow> rows = database.analysisDao()
+                        .getProfileExportRows(profileId);
+                int exported;
+                try (OutputStream output = appContext.getContentResolver()
+                        .openOutputStream(destination, "w")) {
+                    if (output == null) {
+                        throw new IOException("Не удалось открыть выбранное место для записи");
+                    }
+                    try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                            output,
+                            StandardCharsets.UTF_8
+                    ))) {
+                        exported = CsvProfileExporter.write(writer, profile, rows);
+                    }
+                }
+                callback.onSuccess(exported);
             } catch (Exception error) {
                 callback.onError(error);
             }

@@ -13,6 +13,7 @@
     <string name="app_protection_enabled">Защита приложения: включена</string>
     <string name="backup_in_progress">Создаю резервную копию…</string>
     <string name="restore_in_progress">Восстанавливаю данные…</string>
+    <string name="csv_export_in_progress">Экспортирую CSV…</string>
     <string name="documents_title">Документы и результаты</string>
     <string name="documents_empty">Пока ничего нет. Загрузите PDF, фотографию или добавьте результат вручную.</string>
     <string name="add_symbol">+</string>

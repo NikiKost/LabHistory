@@ -69,6 +69,7 @@ public class MainActivity extends SecureActivity {
     private boolean updateReadyDialogShown;
     private boolean awaitingInstallPermission;
     private char[] pendingExportPassword;
+    private long pendingCsvProfileId = -1L;
 
     private final ActivityResultLauncher<String[]> openDocumentLauncher =
             registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::onDocumentSelected);
@@ -83,6 +84,12 @@ public class MainActivity extends SecureActivity {
             registerForActivityResult(
                     new ActivityResultContracts.OpenDocument(),
                     this::onBackupSourceSelected
+            );
+
+    private final ActivityResultLauncher<String> createCsvLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.CreateDocument("text/csv"),
+                    this::onCsvDestinationSelected
             );
 
     @Override
@@ -171,22 +178,91 @@ public class MainActivity extends SecureActivity {
                 .setItems(
                         new String[]{
                                 "Создать зашифрованную копию",
-                                "Восстановить из копии"
+                                "Восстановить из копии",
+                                "Экспортировать показатели в CSV"
                         },
                         (dialog, which) -> {
                             if (which == 0) {
                                 beginBackupExport();
-                            } else {
+                            } else if (which == 1) {
                                 openBackupLauncher.launch(new String[]{
                                         "application/octet-stream",
                                         "application/zip",
                                         "*/*"
                                 });
+                            } else {
+                                beginCsvExport();
                             }
                         }
                 )
                 .setNegativeButton("Отмена", null)
                 .show();
+    }
+
+    private void beginCsvExport() {
+        int position = binding.profileSpinner.getSelectedItemPosition();
+        if (position < 0 || position >= profiles.size()) {
+            Toast.makeText(this, "Сначала создайте профиль", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ProfileEntity profile = profiles.get(position);
+        new AlertDialog.Builder(this)
+                .setTitle("Экспорт показателей")
+                .setMessage("CSV не зашифрован. В нём будут имя профиля, даты и результаты анализов. Храните и отправляйте файл осторожно.")
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Продолжить", (dialog, which) -> {
+                    pendingCsvProfileId = profile.id;
+                    String safeName = profile.name.replaceAll(
+                            "[^\\p{L}\\p{N}._-]+",
+                            "_"
+                    );
+                    if (safeName.length() > 40) {
+                        safeName = safeName.substring(0, 40);
+                    }
+                    String date = new SimpleDateFormat("yyyy-MM-dd", Locale.ROOT)
+                            .format(new Date());
+                    createCsvLauncher.launch(
+                            "LabHistory-" + safeName + "-" + date + ".csv"
+                    );
+                })
+                .show();
+    }
+
+    private void onCsvDestinationSelected(Uri destination) {
+        long profileId = pendingCsvProfileId;
+        pendingCsvProfileId = -1L;
+        if (destination == null || profileId <= 0L) {
+            return;
+        }
+        binding.backupButton.setEnabled(false);
+        binding.backupButton.setText(R.string.csv_export_in_progress);
+        repository.exportProfileCsv(profileId, destination, new AnalysisRepository.Callback<>() {
+            @Override
+            public void onSuccess(Integer exportedRows) {
+                runOnUiThread(() -> {
+                    binding.backupButton.setEnabled(true);
+                    binding.backupButton.setText(R.string.backup_and_restore);
+                    Toast.makeText(
+                            MainActivity.this,
+                            "CSV создан, строк с показателями: " + exportedRows,
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+
+            @Override
+            public void onError(Exception error) {
+                runOnUiThread(() -> {
+                    binding.backupButton.setEnabled(true);
+                    binding.backupButton.setText(R.string.backup_and_restore);
+                    Toast.makeText(
+                            MainActivity.this,
+                            "Не удалось создать CSV: " + safeMessage(error),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+            }
+        });
     }
 
     private void toggleAppProtection() {

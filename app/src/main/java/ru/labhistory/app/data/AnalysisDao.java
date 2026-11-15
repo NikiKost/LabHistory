@@ -64,6 +64,18 @@ public interface AnalysisDao {
             String unit
     );
 
+    @Query("SELECT d.analysisDate AS analysisDate, d.labName AS labName, "
+            + "d.originalFileName AS originalFileName, r.testName AS testName, "
+            + "r.canonicalName AS canonicalName, r.rawValue AS rawValue, "
+            + "r.numericValue AS numericValue, r.unit AS unit, "
+            + "r.referenceLow AS referenceLow, r.referenceHigh AS referenceHigh, "
+            + "r.referenceText AS referenceText "
+            + "FROM lab_results r "
+            + "INNER JOIN analysis_documents d ON d.id = r.documentId "
+            + "WHERE d.profileId = :profileId "
+            + "ORDER BY d.analysisDate ASC, COALESCE(r.canonicalName, r.testName) COLLATE NOCASE ASC, r.id ASC")
+    List<ProfileExportRow> getProfileExportRows(long profileId);
+
     @Query("SELECT r.* FROM lab_results r "
             + "INNER JOIN analysis_documents d ON d.id = r.documentId "
             + "WHERE r.id = :resultId AND d.profileId = :profileId LIMIT 1")
