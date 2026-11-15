@@ -18,7 +18,7 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.biometric.BiometricManager;
 import androidx.core.content.IntentCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -47,7 +47,7 @@ import ru.labhistory.app.update.UpdateChecker;
 import ru.labhistory.app.update.UpdateDownloader;
 import ru.labhistory.app.update.UpdateInfo;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends SecureActivity {
     private static final String UPDATE_PREFS = "update_check";
     private static final String KEY_LAST_UPDATE_CHECK = "last_update_check";
     private static final long UPDATE_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L;
@@ -109,6 +109,8 @@ public class MainActivity extends AppCompatActivity {
         binding.indicatorsButton.setOnClickListener(view -> openIndicators());
         binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
         binding.backupButton.setOnClickListener(view -> showBackupActions());
+        binding.securityButton.setOnClickListener(view -> toggleAppProtection());
+        updateSecurityButton();
         binding.documentsList.setOnItemClickListener((parent, view, position, id) -> {
             AnalysisDocumentEntity document = documentAdapter.getItem(position);
             if (document != null) {
@@ -130,6 +132,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        updateSecurityButton();
         if (awaitingInstallPermission && getPackageManager().canRequestPackageInstalls()) {
             awaitingInstallPermission = false;
             launchUpdateInstaller();
@@ -180,6 +183,67 @@ public class MainActivity extends AppCompatActivity {
                 )
                 .setNegativeButton("Отмена", null)
                 .show();
+    }
+
+    private void toggleAppProtection() {
+        int status = deviceAuthenticationStatus();
+        if (status != BiometricManager.BIOMETRIC_SUCCESS) {
+            Toast.makeText(
+                    this,
+                    authenticationStatusMessage(status),
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        boolean currentlyEnabled = getAppLockManager().isEnabled();
+        String subtitle = currentlyEnabled
+                ? "Отключение защиты приложения"
+                : "Включение защиты приложения";
+        requestDeviceAuthentication(
+                subtitle,
+                () -> {
+                    getAppLockManager().setEnabled(!currentlyEnabled);
+                    updateSecurityButton();
+                    refreshAppLockProtection();
+                    Toast.makeText(
+                            MainActivity.this,
+                            currentlyEnabled
+                                    ? "Защита приложения выключена"
+                                    : "Защита приложения включена",
+                            Toast.LENGTH_LONG
+                    ).show();
+                },
+                message -> Toast.makeText(
+                        MainActivity.this,
+                        "Настройка защиты не изменена: " + message,
+                        Toast.LENGTH_LONG
+                ).show()
+        );
+    }
+
+    private void updateSecurityButton() {
+        if (binding == null) {
+            return;
+        }
+        binding.securityButton.setText(
+                getAppLockManager().isEnabled()
+                        ? R.string.app_protection_enabled
+                        : R.string.app_protection_disabled
+        );
+    }
+
+    private String authenticationStatusMessage(int status) {
+        if (status == BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED) {
+            return "Сначала настройте отпечаток, лицо или код блокировки в настройках Android";
+        }
+        if (status == BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE) {
+            return "На устройстве нет подходящей защиты экрана";
+        }
+        if (status == BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE) {
+            return "Системная проверка личности сейчас недоступна";
+        }
+        return "Это устройство не поддерживает выбранный способ защиты";
     }
 
     private void beginBackupExport() {

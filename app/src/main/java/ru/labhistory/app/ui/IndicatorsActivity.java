@@ -9,7 +9,6 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -22,7 +21,7 @@ import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.IndicatorSummary;
 import ru.labhistory.app.databinding.ActivityIndicatorsBinding;
 
-public class IndicatorsActivity extends AppCompatActivity {
+public class IndicatorsActivity extends SecureActivity {
     private static final String EXTRA_PROFILE_ID = "profile_id";
     private static final String EXTRA_PROFILE_NAME = "profile_name";
 

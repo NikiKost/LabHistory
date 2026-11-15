@@ -8,6 +8,8 @@
     <string name="open_indicators">Показатели и графики</string>
     <string name="check_updates">Проверить обновления</string>
     <string name="backup_and_restore">Резервная копия</string>
+    <string name="app_protection_disabled">Защита приложения: выключена</string>
+    <string name="app_protection_enabled">Защита приложения: включена</string>
     <string name="backup_in_progress">Создаю резервную копию…</string>
     <string name="restore_in_progress">Восстанавливаю данные…</string>
     <string name="documents_title">Документы и результаты</string>
@@ -67,4 +69,10 @@
     <string name="backup_password_message">Не менее 8 символов. Без этого пароля восстановить данные будет невозможно.</string>
     <string name="backup_password_hint">Пароль</string>
     <string name="backup_password_repeat_hint">Повторите пароль</string>
+    <string name="app_locked_title">Мои анализы заблокированы</string>
+    <string name="app_locked_message">Подтвердите личность отпечатком, лицом или кодом блокировки устройства.</string>
+    <string name="unlock_app">Разблокировать</string>
+    <string name="app_unlock_subtitle">Доступ к медицинским документам</string>
+    <string name="app_unlock_failed">Не удалось распознать. Попробуйте ещё раз.</string>
+    <string name="app_authentication_title">Подтвердите личность</string>
 </resources>

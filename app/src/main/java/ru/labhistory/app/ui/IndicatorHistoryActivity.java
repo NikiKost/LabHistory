@@ -16,7 +16,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -40,7 +39,7 @@ import ru.labhistory.app.databinding.ActivityIndicatorHistoryBinding;
 import ru.labhistory.app.parser.ReferenceRangeEvaluator;
 import ru.labhistory.app.parser.TestNameNormalizer;
 
-public class IndicatorHistoryActivity extends AppCompatActivity {
+public class IndicatorHistoryActivity extends SecureActivity {
     private static final String EXTRA_PROFILE_ID = "profile_id";
     private static final String EXTRA_CANONICAL_KEY = "canonical_key";
     private static final String EXTRA_TEST_NAME = "test_name";

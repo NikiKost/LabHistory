@@ -81,6 +81,12 @@
         android:layout_height="wrap_content"
         android:text="@string/backup_and_restore" />
 
+    <Button
+        android:id="@+id/securityButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/app_protection_disabled" />
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

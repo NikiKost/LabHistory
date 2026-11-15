@@ -14,7 +14,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -32,7 +31,7 @@ import ru.labhistory.app.databinding.ActivityReviewResultsBinding;
 import ru.labhistory.app.domain.ReviewResultInput;
 import ru.labhistory.app.parser.OcrResultParser;
 
-public class ReviewResultsActivity extends AppCompatActivity {
+public class ReviewResultsActivity extends SecureActivity {
     private static final String EXTRA_DOCUMENT_ID = "document_id";
 
     private final List<ResultRow> rows = new ArrayList<>();

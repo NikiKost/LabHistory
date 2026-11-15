@@ -12,7 +12,6 @@ import android.widget.DatePicker;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -35,7 +34,7 @@ import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.LabResultEntity;
 import ru.labhistory.app.databinding.ActivityDocumentDetailBinding;
 
-public class DocumentDetailActivity extends AppCompatActivity {
+public class DocumentDetailActivity extends SecureActivity {
     private static final String EXTRA_DOCUMENT_ID = "document_id";
     private static final int PREVIEW_MAX_SIDE = 1600;
 
