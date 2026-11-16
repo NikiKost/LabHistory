@@ -18,6 +18,7 @@ import java.util.Locale;
 
 import ru.labhistory.app.R;
 import ru.labhistory.app.data.IndicatorSummary;
+import ru.labhistory.app.parser.ReferenceRangeEvaluator;
 
 public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
     private final LayoutInflater inflater;
@@ -27,6 +28,7 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
     );
     private final List<IndicatorSummary> allIndicators = new ArrayList<>();
     private String currentQuery = "";
+    private boolean outsideOnly;
 
     public IndicatorListAdapter(Context context) {
         super(context, 0, new ArrayList<>());
@@ -46,13 +48,19 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
         publishFilteredItems();
     }
 
+    public void setOutsideOnly(boolean outsideOnly) {
+        this.outsideOnly = outsideOnly;
+        publishFilteredItems();
+    }
+
     private void publishFilteredItems() {
         clear();
         for (IndicatorSummary indicator : allIndicators) {
             String name = indicator.testName == null ? "" : indicator.testName;
             String unit = indicator.unit == null ? "" : indicator.unit;
             String searchable = (name + " " + unit).toLowerCase(Locale.ROOT);
-            if (currentQuery.isEmpty() || searchable.contains(currentQuery)) {
+            boolean matchesQuery = currentQuery.isEmpty() || searchable.contains(currentQuery);
+            if (matchesQuery && (!outsideOnly || indicator.isLatestOutsideReference())) {
                 add(indicator);
             }
         }
@@ -67,7 +75,8 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
             convertView = inflater.inflate(R.layout.item_indicator, parent, false);
             holder = new ViewHolder(
                     convertView.findViewById(R.id.nameText),
-                    convertView.findViewById(R.id.metaText)
+                    convertView.findViewById(R.id.metaText),
+                    convertView.findViewById(R.id.statusText)
             );
             convertView.setTag(holder);
         } else {
@@ -86,17 +95,42 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
                     indicator.measurementCount,
                     dateFormat.format(new Date(indicator.latestDate))
             ));
+            bindReferenceStatus(holder.status, indicator, unit);
         }
         return convertView;
+    }
+
+    private void bindReferenceStatus(
+            TextView statusView,
+            IndicatorSummary indicator,
+            String displayUnit
+    ) {
+        ReferenceRangeEvaluator.Status status = indicator.getLatestReferenceStatus();
+        if (status != ReferenceRangeEvaluator.Status.BELOW
+                && status != ReferenceRangeEvaluator.Status.ABOVE) {
+            statusView.setVisibility(View.GONE);
+            return;
+        }
+        int textResource = status == ReferenceRangeEvaluator.Status.BELOW
+                ? R.string.indicator_latest_below
+                : R.string.indicator_latest_above;
+        String value = indicator.latestNumericValue == null ? "" : indicator.latestNumericValue;
+        String valueWithUnit = displayUnit.equals("без единицы")
+                ? value
+                : value + " " + displayUnit;
+        statusView.setText(getContext().getString(textResource, valueWithUnit));
+        statusView.setVisibility(View.VISIBLE);
     }
 
     private static final class ViewHolder {
         final TextView name;
         final TextView meta;
+        final TextView status;
 
-        ViewHolder(TextView name, TextView meta) {
+        ViewHolder(TextView name, TextView meta, TextView status) {
             this.name = name;
             this.meta = meta;
+            this.status = status;
         }
     }
 }

@@ -17,6 +17,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import java.util.List;
 
+import ru.labhistory.app.R;
 import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.IndicatorSummary;
 import ru.labhistory.app.databinding.ActivityIndicatorsBinding;
@@ -65,11 +66,16 @@ public class IndicatorsActivity extends SecureActivity {
             @Override
             public void onTextChanged(CharSequence text, int start, int before, int count) {
                 adapter.applyFilter(text == null ? "" : text.toString());
+                updateEmptyMessage();
             }
 
             @Override
             public void afterTextChanged(Editable editable) {
             }
+        });
+        binding.outsideOnlyCheckbox.setOnCheckedChangeListener((button, checked) -> {
+            adapter.setOutsideOnly(checked);
+            updateEmptyMessage();
         });
         binding.backButton.setOnClickListener(view -> finish());
         binding.indicatorsList.setOnItemClickListener((parent, view, position, id) -> {
@@ -99,6 +105,7 @@ public class IndicatorsActivity extends SecureActivity {
             public void onSuccess(List<IndicatorSummary> value) {
                 runOnUiThread(() -> {
                     adapter.replaceAll(value);
+                    updateEmptyMessage();
                     binding.progressBar.setVisibility(View.GONE);
                 });
             }
@@ -115,6 +122,15 @@ public class IndicatorsActivity extends SecureActivity {
                 });
             }
         });
+    }
+
+    private void updateEmptyMessage() {
+        boolean hasSearch = binding.searchField.getText() != null
+                && !binding.searchField.getText().toString().trim().isEmpty();
+        int textResource = hasSearch || binding.outsideOnlyCheckbox.isChecked()
+                ? R.string.indicators_filtered_empty
+                : R.string.indicators_empty;
+        binding.emptyView.setText(textResource);
     }
 
     private void applySystemInsets() {

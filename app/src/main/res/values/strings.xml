@@ -50,8 +50,13 @@
     <string name="indicators_title">Показатели</string>
     <string name="indicators_note">Здесь показаны только подтверждённые числовые значения. Сокращения и полные названия одного показателя объединяются; разные единицы остаются отдельными историями.</string>
     <string name="search_indicators_hint">Поиск по названию или единице</string>
+    <string name="indicators_outside_only">Только последние значения вне референса</string>
+    <string name="indicators_reference_note">Сравнение выполняется только с диапазоном из последнего бланка и не является диагнозом.</string>
     <string name="indicators_empty">Пока нет подтверждённых числовых показателей. Откройте документ, проверьте распознанные строки и сохраните их.</string>
+    <string name="indicators_filtered_empty">По выбранным фильтрам ничего не найдено.</string>
     <string name="indicator_meta_format">%1$s • измерений: %2$d • последнее: %3$s</string>
+    <string name="indicator_latest_below">Последнее: %1$s — ниже референса бланка</string>
+    <string name="indicator_latest_above">Последнее: %1$s — выше референса бланка</string>
     <string name="chart_note">График показывает сохранённые значения по датам. Красные точки выходят за референс, указанный в конкретном бланке; это не медицинская интерпретация.</string>
     <string name="measurements_title">История измерений</string>
     <string name="measurements_empty">Нет числовых измерений для графика.</string>
