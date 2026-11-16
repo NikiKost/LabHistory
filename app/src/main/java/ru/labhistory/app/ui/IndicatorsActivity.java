@@ -7,6 +7,8 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.core.graphics.Insets;
@@ -21,6 +23,7 @@ import ru.labhistory.app.R;
 import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.IndicatorSummary;
 import ru.labhistory.app.databinding.ActivityIndicatorsBinding;
+import ru.labhistory.app.domain.IndicatorSummarySorter;
 
 public class IndicatorsActivity extends SecureActivity {
     private static final String EXTRA_PROFILE_ID = "profile_id";
@@ -58,6 +61,27 @@ public class IndicatorsActivity extends SecureActivity {
         binding.profileText.setText("Профиль: " + (profileName == null ? "" : profileName));
         binding.indicatorsList.setAdapter(adapter);
         binding.indicatorsList.setEmptyView(binding.emptyView);
+        ArrayAdapter<CharSequence> sortAdapter = ArrayAdapter.createFromResource(
+                this,
+                R.array.indicator_sort_options,
+                android.R.layout.simple_spinner_item
+        );
+        sortAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        binding.sortSpinner.setAdapter(sortAdapter);
+        binding.sortSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                IndicatorSummarySorter.Order[] orders = IndicatorSummarySorter.Order.values();
+                adapter.setSortOrder(position < orders.length
+                        ? orders[position]
+                        : IndicatorSummarySorter.Order.NAME);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                adapter.setSortOrder(IndicatorSummarySorter.Order.NAME);
+            }
+        });
         binding.searchField.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence text, int start, int count, int after) {

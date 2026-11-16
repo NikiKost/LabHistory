@@ -18,6 +18,7 @@ import java.util.Locale;
 
 import ru.labhistory.app.R;
 import ru.labhistory.app.data.IndicatorSummary;
+import ru.labhistory.app.domain.IndicatorSummarySorter;
 import ru.labhistory.app.parser.ReferenceRangeEvaluator;
 
 public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
@@ -29,10 +30,12 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
     private final List<IndicatorSummary> allIndicators = new ArrayList<>();
     private String currentQuery = "";
     private boolean outsideOnly;
+    private IndicatorSummarySorter.Order sortOrder = IndicatorSummarySorter.Order.NAME;
 
     public IndicatorListAdapter(Context context) {
         super(context, 0, new ArrayList<>());
         inflater = LayoutInflater.from(context);
+        setNotifyOnChange(false);
     }
 
     public void replaceAll(List<IndicatorSummary> indicators) {
@@ -53,17 +56,25 @@ public class IndicatorListAdapter extends ArrayAdapter<IndicatorSummary> {
         publishFilteredItems();
     }
 
+    public void setSortOrder(IndicatorSummarySorter.Order sortOrder) {
+        this.sortOrder = sortOrder == null ? IndicatorSummarySorter.Order.NAME : sortOrder;
+        publishFilteredItems();
+    }
+
     private void publishFilteredItems() {
-        clear();
+        List<IndicatorSummary> visibleIndicators = new ArrayList<>();
         for (IndicatorSummary indicator : allIndicators) {
             String name = indicator.testName == null ? "" : indicator.testName;
             String unit = indicator.unit == null ? "" : indicator.unit;
             String searchable = (name + " " + unit).toLowerCase(Locale.ROOT);
             boolean matchesQuery = currentQuery.isEmpty() || searchable.contains(currentQuery);
             if (matchesQuery && (!outsideOnly || indicator.isLatestOutsideReference())) {
-                add(indicator);
+                visibleIndicators.add(indicator);
             }
         }
+        IndicatorSummarySorter.sort(visibleIndicators, sortOrder);
+        clear();
+        addAll(visibleIndicators);
         notifyDataSetChanged();
     }
 

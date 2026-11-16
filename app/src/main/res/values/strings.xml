@@ -49,6 +49,12 @@
     <string name="save_results">Сохранить показатели</string>
     <string name="indicators_title">Показатели</string>
     <string name="indicators_note">Здесь показаны только подтверждённые числовые значения. Сокращения и полные названия одного показателя объединяются; разные единицы остаются отдельными историями.</string>
+    <string name="indicator_sort_label">Сортировка:</string>
+    <string-array name="indicator_sort_options">
+        <item>По названию</item>
+        <item>Сначала новые</item>
+        <item>Отклонения сначала</item>
+    </string-array>
     <string name="search_indicators_hint">Поиск по названию или единице</string>
     <string name="indicators_outside_only">Только последние значения вне референса</string>
     <string name="indicators_reference_note">Сравнение выполняется только с диапазоном из последнего бланка и не является диагнозом.</string>
