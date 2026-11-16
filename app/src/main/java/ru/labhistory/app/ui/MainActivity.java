@@ -44,8 +44,10 @@ import ru.labhistory.app.backup.BackupRepository;
 import ru.labhistory.app.backup.BackupSummary;
 import ru.labhistory.app.data.AnalysisDocumentEntity;
 import ru.labhistory.app.data.AnalysisRepository;
+import ru.labhistory.app.data.IndicatorSummary;
 import ru.labhistory.app.data.ProfileEntity;
 import ru.labhistory.app.databinding.ActivityMainBinding;
+import ru.labhistory.app.domain.IndicatorOverview;
 import ru.labhistory.app.domain.ManualResultInput;
 import ru.labhistory.app.domain.ProfileValidator;
 import ru.labhistory.app.update.UpdateChecker;
@@ -134,6 +136,7 @@ public class MainActivity extends SecureActivity {
         ));
         binding.manualButton.setOnClickListener(view -> showManualResultDialog());
         binding.indicatorsButton.setOnClickListener(view -> openIndicators());
+        binding.profileOverviewCard.setOnClickListener(view -> openIndicators());
         binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
         binding.backupButton.setOnClickListener(view -> showBackupActions());
         binding.securityButton.setOnClickListener(view -> toggleAppProtection());
@@ -160,6 +163,10 @@ public class MainActivity extends SecureActivity {
     protected void onResume() {
         super.onResume();
         updateSecurityButton();
+        long profileId = getSelectedProfileId();
+        if (profileId > 0L) {
+            loadProfileOverview(profileId);
+        }
         if (awaitingInstallPermission && getPackageManager().canRequestPackageInstalls()) {
             awaitingInstallPermission = false;
             launchUpdateInstaller();
@@ -706,6 +713,9 @@ public class MainActivity extends SecureActivity {
         long profileId = getSelectedProfileId();
         if (profileId <= 0) {
             documentAdapter.replaceAll(new ArrayList<>());
+            binding.profileOverviewCard.setEnabled(false);
+            binding.profileOverviewSummary.setText(R.string.profile_overview_empty);
+            binding.profileOverviewSummary.setTextColor(getColor(R.color.text_secondary));
             return;
         }
 
@@ -713,7 +723,62 @@ public class MainActivity extends SecureActivity {
             currentDocuments.removeObservers(this);
         }
         currentDocuments = repository.observeDocuments(profileId);
-        currentDocuments.observe(this, documentAdapter::replaceAll);
+        currentDocuments.observe(this, documents -> {
+            documentAdapter.replaceAll(documents);
+            loadProfileOverview(profileId);
+        });
+    }
+
+    private void loadProfileOverview(long profileId) {
+        binding.profileOverviewCard.setEnabled(false);
+        binding.profileOverviewSummary.setText(R.string.profile_overview_loading);
+        binding.profileOverviewSummary.setTextColor(getColor(R.color.text_secondary));
+        repository.loadIndicatorSummaries(profileId, new AnalysisRepository.Callback<>() {
+            @Override
+            public void onSuccess(List<IndicatorSummary> value) {
+                IndicatorOverview overview = IndicatorOverview.from(value);
+                runOnUiThread(() -> {
+                    if (getSelectedProfileId() != profileId) {
+                        return;
+                    }
+                    binding.profileOverviewCard.setEnabled(true);
+                    if (overview.totalCount == 0) {
+                        binding.profileOverviewSummary.setText(R.string.profile_overview_empty);
+                        binding.profileOverviewSummary.setTextColor(
+                                getColor(R.color.text_secondary)
+                        );
+                        return;
+                    }
+                    binding.profileOverviewSummary.setText(getString(
+                            R.string.profile_overview_format,
+                            overview.totalCount,
+                            overview.outsideReferenceCount,
+                            overview.unknownReferenceCount
+                    ));
+                    binding.profileOverviewSummary.setTextColor(getColor(
+                            overview.outsideReferenceCount > 0
+                                    ? R.color.danger
+                                    : R.color.text_secondary
+                    ));
+                });
+            }
+
+            @Override
+            public void onError(Exception error) {
+                runOnUiThread(() -> {
+                    if (getSelectedProfileId() != profileId) {
+                        return;
+                    }
+                    binding.profileOverviewCard.setEnabled(false);
+                    binding.profileOverviewSummary.setText(
+                            R.string.profile_overview_unavailable
+                    );
+                    binding.profileOverviewSummary.setTextColor(
+                            getColor(R.color.text_secondary)
+                    );
+                });
+            }
+        });
     }
 
     private long getSelectedProfileId() {

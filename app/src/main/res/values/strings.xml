@@ -11,6 +11,12 @@
     <string name="backup_and_restore">Резервная копия</string>
     <string name="app_protection_disabled">Защита приложения: выключена</string>
     <string name="app_protection_enabled">Защита приложения: включена</string>
+    <string name="profile_overview_title">Последние показатели</string>
+    <string name="profile_overview_loading">Загружаю сводку…</string>
+    <string name="profile_overview_empty">Подтверждённых числовых показателей пока нет</string>
+    <string name="profile_overview_unavailable">Не удалось загрузить сводку</string>
+    <string name="profile_overview_format">Всего: %1$d • вне референса: %2$d • без диапазона: %3$d</string>
+    <string name="profile_overview_note">Сравниваются последние значения и диапазоны их бланков. Нажмите, чтобы открыть список.</string>
     <string name="backup_in_progress">Создаю резервную копию…</string>
     <string name="restore_in_progress">Восстанавливаю данные…</string>
     <string name="csv_export_in_progress">Экспортирую CSV…</string>
