@@ -79,6 +79,9 @@ jobs:
               apkUrl: $apkUrl,
               sha256: $sha256,
               releaseNotes: [
+                "Добавлен фильтр показателей по последним значениям вне референса бланка",
+                "Добавлена сортировка показателей по названию, дате и отклонениям",
+                "На главном экране появилась сводка последних показателей профиля",
                 "Документы на главном экране сгруппированы по дате сдачи",
                 "Добавлен поиск документов по лаборатории, имени файла, типу и статусу",
                 "Добавлен экспорт показателей выбранного профиля в CSV для Excel",
@@ -119,3 +122,14 @@ jobs:
             --title "LabHistory $GITHUB_REF_NAME" \
             --generate-notes \
             --verify-tag
+
+      - name: Backup release to Yandex Disk
+        env:
+          YANDEX_DISK_TOKEN: ${{ secrets.YANDEX_DISK_TOKEN }}
+        shell: bash
+        run: |
+          if [[ -z "${YANDEX_DISK_TOKEN:-}" ]]; then
+            echo "::notice::YANDEX_DISK_TOKEN is not configured; Yandex Disk backup was skipped"
+            exit 0
+          fi
+          bash .github/scripts/upload-yandex-disk.sh dist "$GITHUB_REF_NAME"

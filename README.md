@@ -92,6 +92,20 @@ git push origin v0.13.0
 
 Workflow `.github/workflows/release.yml` требует GitHub Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` и `ANDROID_KEY_PASSWORD`.
 
+### Копия релиза на Яндекс Диске
+
+После публикации GitHub Release workflow может автоматически скопировать APK, SHA-256 и `update.json` в папку приложения на Яндекс Диске: `Приложения/LabHistory/releases/<тег>/`. Медицинские документы и локальная база приложения в эту папку не отправляются.
+
+Для подключения:
+
+1. Создайте в [Яндекс OAuth](https://oauth.yandex.ru/client/new/) приложение типа «Для доступа к API или отладки».
+2. Выдайте ему только право доступа к папке приложения на Яндекс Диске (`cloud_api:disk.app_folder`).
+3. Получите OAuth-токен вручную для своего аккаунта.
+4. В репозитории GitHub откройте **Settings → Secrets and variables → Actions → New repository secret**.
+5. Создайте секрет с именем `YANDEX_DISK_TOKEN` и вставьте токен как его значение.
+
+Токен нельзя добавлять в код, коммиты, логи или сообщения. Если секрет не настроен, GitHub Release продолжит публиковаться, а шаг копирования на Яндекс Диск будет безопасно пропущен.
+
 ## Сборка
 
 Требования:
