@@ -102,6 +102,20 @@
         android:layout_height="wrap_content"
         android:text="@string/backup_and_restore" />
 
+    <TextView
+        android:id="@+id/backupStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="5dp"
+        android:text="@string/backup_status_empty"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp" />
+
     <Button
         android:id="@+id/securityButton"
         android:layout_width="match_parent"

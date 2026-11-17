@@ -10,6 +10,9 @@ import java.util.List;
 
 @Dao
 public interface AnalysisDao {
+    @Query("SELECT COUNT(*) FROM analysis_documents")
+    LiveData<Integer> observeDocumentCount();
+
     @Query("SELECT * FROM analysis_documents WHERE profileId = :profileId ORDER BY analysisDate DESC, id DESC")
     LiveData<List<AnalysisDocumentEntity>> observeDocuments(long profileId);
 

@@ -9,6 +9,14 @@
     <string name="open_indicators">Показатели и графики</string>
     <string name="check_updates">Проверить обновления</string>
     <string name="backup_and_restore">Резервная копия</string>
+    <string name="backup_status_empty">Резервная копия: пока нет документов</string>
+    <string name="backup_status_never">Актуальность копии не подтверждена • документов: %1$d</string>
+    <string name="backup_status_new_documents">После последней копии добавлено документов: %1$d</string>
+    <string name="backup_status_changed">Число документов изменилось после последней копии</string>
+    <string name="backup_status_current">Последняя копия: %1$s • документов: %2$d</string>
+    <string name="backup_reminder_title">Защитите сохранённые анализы</string>
+    <string name="backup_reminder_never">Приложение ещё не фиксировало создание свежей копии. Старые файлы .labbackup остаются действительными. При удалении приложения локальные документы исчезнут. Создать новую копию?</string>
+    <string name="backup_reminder_changed">После последней резервной копии документы изменились. Создать новую зашифрованную копию?</string>
     <string name="app_protection_disabled">Защита приложения: выключена</string>
     <string name="app_protection_enabled">Защита приложения: включена</string>
     <string name="profile_overview_title">Последние показатели</string>

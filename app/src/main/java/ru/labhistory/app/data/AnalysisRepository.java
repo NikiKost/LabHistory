@@ -54,6 +54,10 @@ public class AnalysisRepository {
         return database.profileDao().observeAll();
     }
 
+    public LiveData<Integer> observeDocumentCount() {
+        return database.analysisDao().observeDocumentCount();
+    }
+
     public LiveData<List<AnalysisDocumentEntity>> observeDocuments(long profileId) {
         return database.analysisDao().observeDocuments(profileId);
     }

@@ -47,6 +47,7 @@ import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.IndicatorSummary;
 import ru.labhistory.app.data.ProfileEntity;
 import ru.labhistory.app.databinding.ActivityMainBinding;
+import ru.labhistory.app.domain.BackupFreshness;
 import ru.labhistory.app.domain.IndicatorOverview;
 import ru.labhistory.app.domain.ManualResultInput;
 import ru.labhistory.app.domain.ProfileValidator;
@@ -58,6 +59,12 @@ public class MainActivity extends SecureActivity {
     private static final String UPDATE_PREFS = "update_check";
     private static final String KEY_LAST_UPDATE_CHECK = "last_update_check";
     private static final long UPDATE_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L;
+    private static final String BACKUP_PREFS = "backup_status";
+    private static final String KEY_LAST_BACKUP_AT = "last_backup_at";
+    private static final String KEY_BACKED_UP_DOCUMENTS = "backed_up_documents";
+    private static final String KEY_LAST_BACKUP_REMINDER = "last_backup_reminder";
+    private static final String KEY_LAST_BACKUP_REMINDER_AT = "last_backup_reminder_at";
+    private static final long BACKUP_REMINDER_INTERVAL_MS = 7L * 24L * 60L * 60L * 1000L;
 
     private ActivityMainBinding binding;
     private AnalysisRepository repository;
@@ -72,6 +79,8 @@ public class MainActivity extends SecureActivity {
     private boolean updateInspectionRunning;
     private boolean updateReadyDialogShown;
     private boolean awaitingInstallPermission;
+    private boolean backupReminderDialogShown;
+    private int documentCount;
     private char[] pendingExportPassword;
     private long pendingCsvProfileId = -1L;
 
@@ -139,6 +148,7 @@ public class MainActivity extends SecureActivity {
         binding.profileOverviewCard.setOnClickListener(view -> openIndicators());
         binding.updateButton.setOnClickListener(view -> checkForUpdates(true));
         binding.backupButton.setOnClickListener(view -> showBackupActions());
+        binding.backupStatus.setOnClickListener(view -> showBackupActions());
         binding.securityButton.setOnClickListener(view -> toggleAppProtection());
         updateSecurityButton();
         binding.documentsList.setOnItemClickListener((parent, view, position, id) -> {
@@ -152,6 +162,10 @@ public class MainActivity extends SecureActivity {
         ));
 
         repository.observeProfiles().observe(this, this::renderProfiles);
+        repository.observeDocumentCount().observe(this, count -> {
+            documentCount = count == null ? 0 : Math.max(0, count);
+            renderBackupStatus();
+        });
         repository.ensureDefaultProfile();
         checkForUpdates(false);
         if (updateDownloader.hasPendingDownload()) {
@@ -173,6 +187,7 @@ public class MainActivity extends SecureActivity {
         } else if (updateDownloader != null && updateDownloader.hasPendingDownload()) {
             inspectPendingUpdate();
         }
+        scheduleBackupReminder();
     }
 
     @Override
@@ -376,6 +391,7 @@ public class MainActivity extends SecureActivity {
                 public void onSuccess(BackupSummary summary) {
                     runOnUiThread(() -> {
                         setBackupBusy(false, false);
+                        recordSuccessfulBackup(summary.documents);
                         Toast.makeText(
                                 MainActivity.this,
                                 "Копия создана: профилей " + summary.profiles
@@ -525,6 +541,107 @@ public class MainActivity extends SecureActivity {
                         : R.string.backup_in_progress)
                         : R.string.backup_and_restore
         );
+    }
+
+    private void recordSuccessfulBackup(int backedUpDocuments) {
+        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .edit()
+                .putLong(KEY_LAST_BACKUP_AT, System.currentTimeMillis())
+                .putInt(KEY_BACKED_UP_DOCUMENTS, Math.max(0, backedUpDocuments))
+                .remove(KEY_LAST_BACKUP_REMINDER)
+                .remove(KEY_LAST_BACKUP_REMINDER_AT)
+                .apply();
+        renderBackupStatus();
+    }
+
+    private void renderBackupStatus() {
+        if (binding == null) {
+            return;
+        }
+        long lastBackupAt = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getLong(KEY_LAST_BACKUP_AT, 0L);
+        int backedUpDocuments = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getInt(KEY_BACKED_UP_DOCUMENTS, 0);
+        BackupFreshness freshness = BackupFreshness.from(
+                documentCount,
+                lastBackupAt,
+                backedUpDocuments
+        );
+
+        if (freshness.state == BackupFreshness.State.EMPTY) {
+            binding.backupStatus.setText(R.string.backup_status_empty);
+            binding.backupStatus.setTextColor(getColor(R.color.text_secondary));
+        } else if (freshness.state == BackupFreshness.State.NEVER_BACKED_UP) {
+            binding.backupStatus.setText(getString(
+                    R.string.backup_status_never,
+                    freshness.currentDocuments
+            ));
+            binding.backupStatus.setTextColor(getColor(R.color.accent));
+        } else if (freshness.state == BackupFreshness.State.CHANGED) {
+            binding.backupStatus.setText(freshness.newDocuments > 0
+                    ? getString(R.string.backup_status_new_documents, freshness.newDocuments)
+                    : getString(R.string.backup_status_changed));
+            binding.backupStatus.setTextColor(getColor(R.color.accent));
+        } else {
+            String date = new SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+                    .format(new Date(lastBackupAt));
+            binding.backupStatus.setText(getString(
+                    R.string.backup_status_current,
+                    date,
+                    freshness.currentDocuments
+            ));
+            binding.backupStatus.setTextColor(getColor(R.color.text_secondary));
+        }
+    }
+
+    private void scheduleBackupReminder() {
+        updateHandler.postDelayed(this::maybeShowBackupReminder, 2200L);
+    }
+
+    private void maybeShowBackupReminder() {
+        if (binding == null || backupReminderDialogShown || isFinishing() || isDestroyed()) {
+            return;
+        }
+        long lastBackupAt = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getLong(KEY_LAST_BACKUP_AT, 0L);
+        int backedUpDocuments = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getInt(KEY_BACKED_UP_DOCUMENTS, 0);
+        BackupFreshness freshness = BackupFreshness.from(
+                documentCount,
+                lastBackupAt,
+                backedUpDocuments
+        );
+        if (!freshness.needsBackup()) {
+            return;
+        }
+
+        String signature = freshness.reminderSignature(lastBackupAt);
+        String lastSignature = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getString(KEY_LAST_BACKUP_REMINDER, "");
+        long lastReminderAt = getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .getLong(KEY_LAST_BACKUP_REMINDER_AT, 0L);
+        long now = System.currentTimeMillis();
+        if (signature.equals(lastSignature)
+                && now - lastReminderAt < BACKUP_REMINDER_INTERVAL_MS) {
+            return;
+        }
+
+        getSharedPreferences(BACKUP_PREFS, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_LAST_BACKUP_REMINDER, signature)
+                .putLong(KEY_LAST_BACKUP_REMINDER_AT, now)
+                .apply();
+        backupReminderDialogShown = true;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.backup_reminder_title)
+                .setMessage(freshness.state == BackupFreshness.State.NEVER_BACKED_UP
+                        ? R.string.backup_reminder_never
+                        : R.string.backup_reminder_changed)
+                .setNegativeButton("Позже", null)
+                .setPositiveButton("Создать копию", (ignored, which) -> beginBackupExport())
+                .create();
+        dialog.setOnDismissListener(ignored -> backupReminderDialogShown = false);
+        dialog.show();
     }
 
     private void clearPendingExportPassword() {
@@ -832,11 +949,14 @@ public class MainActivity extends SecureActivity {
                 repository.recognizeDocument(value.id, new AnalysisRepository.Callback<>() {
                     @Override
                     public void onSuccess(AnalysisDocumentEntity recognizedDocument) {
-                        runOnUiThread(() -> Toast.makeText(
-                                MainActivity.this,
-                                "Данные извлечены — откройте документ и проверьте их",
-                                Toast.LENGTH_LONG
-                        ).show());
+                        runOnUiThread(() -> {
+                            Toast.makeText(
+                                    MainActivity.this,
+                                    "Данные извлечены — откройте документ и проверьте их",
+                                    Toast.LENGTH_LONG
+                            ).show();
+                            scheduleBackupReminder();
+                        });
                     }
 
                     @Override
@@ -1073,11 +1193,14 @@ public class MainActivity extends SecureActivity {
             repository.addManualResult(profileId, input, new AnalysisRepository.Callback<>() {
                 @Override
                 public void onSuccess(Long documentId) {
-                    runOnUiThread(() -> Toast.makeText(
-                            MainActivity.this,
-                            "Результат сохранён",
-                            Toast.LENGTH_SHORT
-                    ).show());
+                    runOnUiThread(() -> {
+                        Toast.makeText(
+                                MainActivity.this,
+                                "Результат сохранён",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                        scheduleBackupReminder();
+                    });
                 }
 
                 @Override
