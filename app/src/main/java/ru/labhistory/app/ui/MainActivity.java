@@ -713,6 +713,7 @@ public class MainActivity extends SecureActivity {
         long profileId = getSelectedProfileId();
         if (profileId <= 0) {
             documentAdapter.replaceAll(new ArrayList<>());
+            binding.documentsTitle.setText(getString(R.string.documents_title_count, 0));
             binding.profileOverviewCard.setEnabled(false);
             binding.profileOverviewSummary.setText(R.string.profile_overview_empty);
             binding.profileOverviewSummary.setTextColor(getColor(R.color.text_secondary));
@@ -724,7 +725,14 @@ public class MainActivity extends SecureActivity {
         }
         currentDocuments = repository.observeDocuments(profileId);
         currentDocuments.observe(this, documents -> {
-            documentAdapter.replaceAll(documents);
+            List<AnalysisDocumentEntity> safeDocuments = documents == null
+                    ? new ArrayList<>()
+                    : documents;
+            documentAdapter.replaceAll(safeDocuments);
+            binding.documentsTitle.setText(getString(
+                    R.string.documents_title_count,
+                    safeDocuments.size()
+            ));
             loadProfileOverview(profileId);
         });
     }
