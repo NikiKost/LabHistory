@@ -12,7 +12,19 @@ public final class UnitNormalizer {
         if (original.isEmpty()) {
             return "";
         }
-        String value = original.toLowerCase(Locale.ROOT)
+        String withoutInterpretation = original.replaceFirst(
+                "(?iu)^\\s*(?:повыш(?:ен(?:ный|ная|ное|ные|о)?|ено)?|"
+                        + "пониж(?:ен(?:ный|ная|ное|ные|о)?|ено)?|"
+                        + "повыше|пониже|выше|ниже|норм(?:а|альный|альная|альное|альные)?)"
+                        + "\\s*[:;,.\\-–—()]*\\s+",
+                ""
+        );
+        withoutInterpretation = withoutInterpretation.replaceFirst(
+                "(?iu)^[-+]?\\d+(?:[.,]\\d+)?\\s+"
+                        + "(?=(?:ед+|u|ме)/[лl]\\s*$)",
+                ""
+        );
+        String value = withoutInterpretation.toLowerCase(Locale.ROOT)
                 .replace('ё', 'е')
                 .replace('l', 'л')
                 .replace("⁹", "^9")
@@ -30,7 +42,7 @@ public final class UnitNormalizer {
         if (value.matches("(?:x)?10\\^?12/л") || value.matches("10x12/л")) {
             return "10^12/л";
         }
-        if (value.matches("(?:ед|u|ме)/л")) {
+        if (value.matches("(?:ед+|u|ме)/л")) {
             return "Ед/л";
         }
         if (value.equals("г/л")) {
@@ -60,6 +72,6 @@ public final class UnitNormalizer {
         if (value.equals("мм/ч") || value.equals("мм/час")) {
             return "мм/ч";
         }
-        return original.replaceAll("\\s+", " ");
+        return withoutInterpretation.replaceAll("\\s+", " ");
     }
 }

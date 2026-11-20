@@ -1,8 +1,5 @@
 package ru.labhistory.app.parser;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import ru.labhistory.app.importer.LabFormatDetector;
 
 public class InvitroDocumentParser implements LabDocumentParser {
@@ -13,8 +10,12 @@ public class InvitroDocumentParser implements LabDocumentParser {
 
     @Override
     public ParsedAnalysis parse(String extractedText) {
-        List<String> warnings = new ArrayList<>();
-        warnings.add("Парсер ИНВИТРО создан как точка расширения; извлечение строк анализа ещё не подключено.");
-        return new ParsedAnalysis("ИНВИТРО", new ArrayList<>(), warnings);
+        String preparedText = extractedText == null
+                ? ""
+                : extractedText.replaceAll(
+                        "(?imu)^\\s*исследовани[ея]\\s+результат.*$",
+                        "Название теста Результат Ед.изм. Норма"
+                );
+        return LabParserDrafts.parse("ИНВИТРО", preparedText);
     }
 }

@@ -1,8 +1,5 @@
 package ru.labhistory.app.parser;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import ru.labhistory.app.importer.LabFormatDetector;
 
 public class Lab4uDocumentParser implements LabDocumentParser {
@@ -13,8 +10,18 @@ public class Lab4uDocumentParser implements LabDocumentParser {
 
     @Override
     public ParsedAnalysis parse(String extractedText) {
-        List<String> warnings = new ArrayList<>();
-        warnings.add("Парсер Lab4U создан как точка расширения; извлечение строк анализа ещё не подключено.");
-        return new ParsedAnalysis("Lab4U", new ArrayList<>(), warnings);
+        String preparedText = extractedText == null
+                ? ""
+                : extractedText.replaceAll(
+                        "(?imu)^\\s*наименование\\s+(?:исследования|анализа).*результат.*$",
+                        "Наименование теста Результат Единицы измерения Референсные значения"
+                )
+                .replaceAll(
+                        "(?iu)\\s+(?:1|[тt](?:[тt])?|[|{])\\s+"
+                                + "(?=[<>≤≥]?\\s*[-+]?\\d)",
+                        " "
+                )
+                .replaceAll("(?m)(?<=\\d)\\s+\\$\\s+(?=[<>≤≥]?\\s*[-+]?\\d)", " % ");
+        return LabParserDrafts.parse("Lab4U", preparedText);
     }
 }

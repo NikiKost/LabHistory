@@ -283,6 +283,7 @@ public class AnalysisRepository {
     public void loadIndicatorSummaries(long profileId, Callback<List<IndicatorSummary>> callback) {
         executor.execute(() -> {
             try {
+                normalizeStoredUnits();
                 callback.onSuccess(database.analysisDao().getIndicatorSummaries(profileId));
             } catch (Exception error) {
                 callback.onError(error);
@@ -708,6 +709,7 @@ public class AnalysisRepository {
     }
 
     private void normalizeLegacyResults() {
+        normalizeStoredUnits();
         try {
             for (LabResultEntity result : database.analysisDao().getResultsMissingCanonicalData()) {
                 TestNameNormalizer.NormalizedTest normalized = TestNameNormalizer.normalize(result.testName);
@@ -740,6 +742,25 @@ public class AnalysisRepository {
             }
         } catch (RuntimeException ignored) {
             // A later repository instance retries; user data is never deleted for normalization.
+        }
+    }
+
+    private void normalizeStoredUnits() {
+        try {
+            for (LabResultEntity result
+                    : database.analysisDao().getAllResultsForUnitNormalization()) {
+                try {
+                    String normalizedUnit = UnitNormalizer.normalize(result.unit);
+                    String existingUnit = result.canonicalUnit == null ? "" : result.canonicalUnit;
+                    if (!normalizedUnit.equals(existingUnit)) {
+                        database.analysisDao().updateCanonicalUnit(result.id, normalizedUnit);
+                    }
+                } catch (RuntimeException ignored) {
+                    // One malformed legacy row must not block normalization of the others.
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // A later screen load retries without changing user-entered values.
         }
     }
 

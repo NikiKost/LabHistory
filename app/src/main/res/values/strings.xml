@@ -59,6 +59,8 @@
     <string name="preview_unavailable_format">Предпросмотр недоступен: %1$s</string>
     <string name="review_results_title">Проверка показателей</string>
     <string name="review_results_warning">Приложение подготовило черновик. Сверьте каждую строку с оригиналом: цифры и единицы не исправляются автоматически. Только после сохранения числовые значения появятся на графиках.</string>
+    <string name="parser_info_format">Формат: %1$s • найдено строк: %2$d</string>
+    <string name="saved_results_info_format">Формат: %1$s • сохранено строк: %2$d</string>
     <string name="add_result_row">Добавить строку</string>
     <string name="rebuild_from_ocr">Пересобрать из документа</string>
     <string name="save_results">Сохранить показатели</string>

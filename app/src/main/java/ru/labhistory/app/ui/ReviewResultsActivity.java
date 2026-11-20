@@ -29,17 +29,20 @@ import ru.labhistory.app.data.AnalysisRepository;
 import ru.labhistory.app.data.LabResultEntity;
 import ru.labhistory.app.databinding.ActivityReviewResultsBinding;
 import ru.labhistory.app.domain.ReviewResultInput;
-import ru.labhistory.app.parser.OcrResultParser;
+import ru.labhistory.app.parser.LabDocumentParserRegistry;
+import ru.labhistory.app.parser.ParsedAnalysis;
+import ru.labhistory.app.parser.ParsedResult;
 
 public class ReviewResultsActivity extends SecureActivity {
     private static final String EXTRA_DOCUMENT_ID = "document_id";
 
     private final List<ResultRow> rows = new ArrayList<>();
-    private final OcrResultParser parser = new OcrResultParser();
+    private final LabDocumentParserRegistry parser = new LabDocumentParserRegistry();
     private ActivityReviewResultsBinding binding;
     private AnalysisRepository repository;
     private long documentId;
     private String ocrText;
+    private String documentLabName;
 
     public static Intent createIntent(Context context, long documentId) {
         return new Intent(context, ReviewResultsActivity.class)
@@ -99,6 +102,7 @@ public class ReviewResultsActivity extends SecureActivity {
     ) {
         binding.documentText.setText(document.originalFileName);
         ocrText = document.ocrText;
+        documentLabName = document.labName;
         List<ReviewResultInput> inputs = new ArrayList<>();
         if (savedResults != null && !savedResults.isEmpty()) {
             for (LabResultEntity result : savedResults) {
@@ -109,8 +113,15 @@ public class ReviewResultsActivity extends SecureActivity {
                         result.referenceText
                 ));
             }
+            binding.parserInfo.setText(getString(
+                    R.string.saved_results_info_format,
+                    displayLabName(documentLabName),
+                    inputs.size()
+            ));
         } else {
-            inputs.addAll(parser.parse(document.ocrText));
+            ParsedAnalysis parsed = parser.parse(documentLabName, document.ocrText);
+            inputs.addAll(toReviewInputs(parsed));
+            showParserInfo(parsed);
         }
 
         if (inputs.isEmpty()) {
@@ -134,8 +145,9 @@ public class ReviewResultsActivity extends SecureActivity {
     }
 
     private void rebuildFromOcr() {
-        List<ReviewResultInput> parsed = parser.parse(ocrText);
-        if (parsed.isEmpty()) {
+        ParsedAnalysis parsed = parser.parse(documentLabName, ocrText);
+        List<ReviewResultInput> inputs = toReviewInputs(parsed);
+        if (inputs.isEmpty()) {
             Toast.makeText(
                     this,
                     "Не удалось найти строки таблицы. Можно добавить их вручную.",
@@ -149,15 +161,43 @@ public class ReviewResultsActivity extends SecureActivity {
                 .setMessage("Текущие поля на экране будут заменены результатом нового разбора. В базе ничего не изменится, пока вы не нажмёте «Сохранить показатели».")
                 .setNegativeButton("Отмена", null)
                 .setPositiveButton("Пересобрать", (dialog, which) -> {
-                    showInputs(parsed);
+                    showInputs(inputs);
+                    showParserInfo(parsed);
                     binding.resultsScroll.post(() -> binding.resultsScroll.fullScroll(View.FOCUS_UP));
                     Toast.makeText(
                             this,
-                            "Найдено строк: " + parsed.size() + ". Проверьте их по оригиналу.",
+                            "Найдено строк: " + inputs.size() + ". Проверьте их по оригиналу.",
                             Toast.LENGTH_LONG
                     ).show();
                 })
                 .show();
+    }
+
+    private List<ReviewResultInput> toReviewInputs(ParsedAnalysis parsed) {
+        List<ReviewResultInput> inputs = new ArrayList<>();
+        for (ParsedResult result : parsed.results) {
+            inputs.add(new ReviewResultInput(
+                    result.testName,
+                    result.rawValue,
+                    result.unit,
+                    result.referenceText
+            ));
+        }
+        return inputs;
+    }
+
+    private void showParserInfo(ParsedAnalysis parsed) {
+        binding.parserInfo.setText(getString(
+                R.string.parser_info_format,
+                displayLabName(parsed.labName),
+                parsed.results.size()
+        ));
+    }
+
+    private String displayLabName(String labName) {
+        return labName == null || labName.trim().isEmpty()
+                ? "Не определена"
+                : labName.trim();
     }
 
     private void addRow(ReviewResultInput input) {

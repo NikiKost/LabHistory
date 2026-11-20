@@ -71,7 +71,7 @@ public interface AnalysisDao {
 
     @Query("SELECT r.id AS resultId, d.analysisDate AS analysisDate, r.testName AS testName, "
             + "r.rawValue AS rawValue, "
-            + "r.numericValue AS numericValue, COALESCE(r.unit, '') AS unit, "
+            + "r.numericValue AS numericValue, COALESCE(r.canonicalUnit, r.unit, '') AS unit, "
             + "r.referenceLow AS referenceLow, r.referenceHigh AS referenceHigh, "
             + "r.referenceText AS referenceText, d.labName AS labName "
             + "FROM lab_results r "
@@ -104,6 +104,12 @@ public interface AnalysisDao {
 
     @Query("SELECT * FROM lab_results WHERE canonicalKey IS NULL OR canonicalKey = ''")
     List<LabResultEntity> getResultsMissingCanonicalData();
+
+    @Query("SELECT * FROM lab_results")
+    List<LabResultEntity> getAllResultsForUnitNormalization();
+
+    @Query("UPDATE lab_results SET canonicalUnit = :canonicalUnit WHERE id = :resultId")
+    void updateCanonicalUnit(long resultId, String canonicalUnit);
 
     @Query("SELECT * FROM lab_results WHERE referenceText IS NOT NULL AND TRIM(referenceText) != '' "
             + "AND referenceLow IS NULL AND referenceHigh IS NULL")
