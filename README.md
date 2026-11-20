@@ -89,8 +89,8 @@ Release-версия проверяет публичный файл `update.json
 Публикация запускается тегом, совпадающим с `versionName`, например:
 
 ```powershell
-git tag v0.15.0
-git push origin v0.15.0
+git tag v0.15.1
+git push origin v0.15.1
 ```
 
 Workflow `.github/workflows/release.yml` требует GitHub Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` и `ANDROID_KEY_PASSWORD`.
